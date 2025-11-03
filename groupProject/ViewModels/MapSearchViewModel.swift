@@ -1,0 +1,225 @@
+//
+//  MapSearchViewModel.swift
+//  groupProject
+//
+
+import Foundation
+import MapKit
+import Combine
+
+// MARK: - Models for API Response
+struct GooglePlacesResult: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let address: String
+    let latitude: Double
+    let longitude: Double
+    let placeTypes: [String]
+    let phoneNumber: String?
+    let rating: Double?
+    let userRatingsTotal: Int?
+    
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+}
+
+@MainActor
+final class MapSearchViewModel: NSObject, ObservableObject {
+    @Published var searchText = ""
+    @Published var searchResults: [GooglePlacesResult] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var userLocation: CLLocationCoordinate2D?
+    
+    private var locationManager: CLLocationManager
+    private let dataManager = DataManager.shared
+    private let apiKey = "AIzaSyAI4XzQoWrI6enQ6qVFRFqP5rDckKuX9c8" // Replace with your actual API key
+    
+    override init() {
+        self.locationManager = CLLocationManager()
+        super.init()
+        setupLocationManager()
+    }
+    
+    private func setupLocationManager() {
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
+    }
+    
+    func searchNearby(query: String) {
+        guard let userLocation = userLocation else {
+            errorMessage = "Location not available. Please enable location services."
+            print("❌ Location not available")
+            return
+        }
+        
+        guard !query.isEmpty else { return }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        // Check if API key is set
+        if apiKey == "YOUR_GOOGLE_API_KEY_HERE" {
+            errorMessage = "API key not configured. Please add your Google Places API key."
+            isLoading = false
+            return
+        }
+        
+        // Using the new Places API (Text Search)
+        let urlString = "https://places.googleapis.com/v1/places:searchText"
+        var request = URLRequest(url: URL(string: urlString)!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("AIzaSyAI4XzQoWrI6enQ6qVFRFqP5rDckKuX9c8", forHTTPHeaderField: "X-Goog-Api-Key")
+        request.setValue("places.name,places.displayName,places.formattedAddress,places.location,places.types,places.internationalPhoneNumber,places.rating,places.userRatingCount", forHTTPHeaderField: "X-Goog-FieldMask")
+        
+        let body: [String: Any] = [
+            "textQuery": query,
+            "locationBias": [
+                "circle": [
+                    "center": [
+                        "latitude": userLocation.latitude,
+                        "longitude": userLocation.longitude
+                    ],
+                    "radius": 5000.0
+                ]
+            ]
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        print("🔍 Searching for: \(query)")
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                
+                if let error = error {
+                    self?.errorMessage = "Network error: \(error.localizedDescription)"
+                    print("❌ Search error: \(error)")
+                    return
+                }
+                
+                guard let data = data else {
+                    self?.errorMessage = "No data received"
+                    return
+                }
+                
+                // Print raw response for debugging
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("📡 API Response: \(jsonString)")
+                }
+                
+                do {
+                    let decoder = JSONDecoder()
+                    let response = try decoder.decode(NewGooglePlacesResponse.self, from: data)
+                    
+                    print("✅ Found \(response.places.count) places")
+                    
+                    if !response.places.isEmpty {
+                        self?.searchResults = response.places.map { place in
+                            GooglePlacesResult(
+                                id: place.name,
+                                name: place.displayName.text,
+                                address: place.formattedAddress,
+                                latitude: place.location.latitude,
+                                longitude: place.location.longitude,
+                                placeTypes: place.types,
+                                phoneNumber: place.internationalPhoneNumber,
+                                rating: place.rating,
+                                userRatingsTotal: place.userRatingCount
+                            )
+                        }
+                    } else {
+                        self?.errorMessage = "No places found for '\(query)'. Try a different search."
+                    }
+                } catch {
+                    self?.errorMessage = "Failed to decode response: \(error.localizedDescription)"
+                    print("❌ Decoding error: \(error)")
+                }
+            }
+        }.resume()
+    }
+    
+    func categorizePlace(_ result: GooglePlacesResult) -> PlaceCategory {
+        let types = result.placeTypes.map { $0.lowercased() }
+        let name = result.name.lowercased()
+        
+        if types.contains("restaurant") || name.contains("restaurant") || name.contains("cafe") {
+            return .restaurant
+        } else if types.contains("lodging") || types.contains("hotel") {
+            return .hotel
+        } else if types.contains("museum") || name.contains("museum") {
+            return .museum
+        } else if types.contains("park") || name.contains("park") {
+            return .park
+        } else if types.contains("tourist_attraction") || types.contains("landmark") {
+            return .attraction
+        }
+        return .other
+    }
+}
+
+// MARK: - Google Places API (New) Response Models
+struct NewGooglePlacesResponse: Codable {
+    let places: [NewPlace]
+}
+
+struct NewPlace: Codable {
+    let name: String
+    let displayName: DisplayName
+    let formattedAddress: String
+    let location: LatLng
+    let types: [String]
+    let internationalPhoneNumber: String?
+    let rating: Double?
+    let userRatingCount: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case name
+        case displayName
+        case formattedAddress
+        case location
+        case types
+        case internationalPhoneNumber
+        case rating
+        case userRatingCount
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.displayName = try container.decode(DisplayName.self, forKey: .displayName)
+        self.formattedAddress = try container.decode(String.self, forKey: .formattedAddress)
+        self.location = try container.decode(LatLng.self, forKey: .location)
+        self.types = try container.decodeIfPresent([String].self, forKey: .types) ?? []
+        self.internationalPhoneNumber = try container.decodeIfPresent(String.self, forKey: .internationalPhoneNumber)
+        self.rating = try container.decodeIfPresent(Double.self, forKey: .rating)
+        self.userRatingCount = try container.decodeIfPresent(Int.self, forKey: .userRatingCount)
+    }
+}
+
+struct DisplayName: Codable {
+    let text: String
+}
+
+struct LatLng: Codable {
+    let latitude: Double
+    let longitude: Double
+}
+
+extension MapSearchViewModel: CLLocationManagerDelegate {
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        self.userLocation = location.coordinate
+        print("📍 User location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        errorMessage = "Location error: \(error.localizedDescription)"
+        print("❌ Location error: \(error)")
+    }
+}

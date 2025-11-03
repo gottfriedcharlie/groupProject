@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		417387262EB91D240080A934 /* GooglePlaces in Frameworks */ = {isa = PBXBuildFile; productRef = 417387252EB91D240080A934 /* GooglePlaces */; };
+		417387282EB91D240080A934 /* GooglePlacesSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 417387272EB91D240080A934 /* GooglePlacesSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		41C826C02EAC08C00011C690 /* groupProject.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = groupProject.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +41,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				417387262EB91D240080A934 /* GooglePlaces in Frameworks */,
+				417387282EB91D240080A934 /* GooglePlacesSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +85,8 @@
 			);
 			name = groupProject;
 			packageProductDependencies = (
+				417387252EB91D240080A934 /* GooglePlaces */,
+				417387272EB91D240080A934 /* GooglePlacesSwift */,
 			);
 			productName = groupProject;
 			productReference = 41C826C02EAC08C00011C690 /* groupProject.app */;
@@ -107,6 +116,9 @@
 			);
 			mainGroup = 41C826B72EAC08C00011C690;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				417387242EB91D240080A934 /* XCRemoteSwiftPackageReference "ios-places-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 41C826C12EAC08C00011C690 /* Products */;
 			projectDirPath = "";
@@ -269,6 +281,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = groupProject/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "This app needs you location";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app needs you location to show it on the map";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -300,6 +313,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = groupProject/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "This app needs you location";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app needs you location to show it on the map";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -341,6 +355,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		417387242EB91D240080A934 /* XCRemoteSwiftPackageReference "ios-places-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googlemaps/ios-places-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 10.4.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		417387252EB91D240080A934 /* GooglePlaces */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 417387242EB91D240080A934 /* XCRemoteSwiftPackageReference "ios-places-sdk" */;
+			productName = GooglePlaces;
+		};
+		417387272EB91D240080A934 /* GooglePlacesSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 417387242EB91D240080A934 /* XCRemoteSwiftPackageReference "ios-places-sdk" */;
+			productName = GooglePlacesSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 41C826B82EAC08C00011C690 /* Project object */;
 }
