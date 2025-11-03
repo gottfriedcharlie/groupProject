@@ -2,9 +2,7 @@
 //  Color+Theme.swift
 //  groupProject
 //
-//  Created by Charlie Gottfried on 10/24/25.
 //
-
 import SwiftUI
 
 extension Color {
@@ -12,3 +10,4 @@ extension Color {
     static let appSecondary = Color.orange
     static let appBackground = Color(.systemGroupedBackground)
 }
+
