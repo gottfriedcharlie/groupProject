@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  groupProject
 //
-//
+
 import SwiftUI
 
 struct ContentView: View {
@@ -11,6 +11,11 @@ struct ContentView: View {
             TripListView()
                 .tabItem {
                     Label("Trips", systemImage: "airplane")
+                }
+            
+            ItineraryView()
+                .tabItem {
+                    Label("Itinerary", systemImage: "checklist")
                 }
             
             NavigationView {
