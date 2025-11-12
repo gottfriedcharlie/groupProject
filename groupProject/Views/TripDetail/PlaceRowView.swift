@@ -8,24 +8,18 @@
 import SwiftUI
 
 struct PlaceRowView: View {
-    let place: Place
-    
+    let place: ItineraryPlace
+
     var body: some View {
         HStack {
-            Image(systemName: place.category.icon)
+            // You may need to update 'category.icon' depending on your ItineraryPlace model.
+            Image(systemName: place.placeTypes.first.flatMap { PlaceCategory(rawValue: $0)?.icon } ?? "mappin")
                 .foregroundColor(.blue)
                 .frame(width: 30)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(place.name)
                     .font(.body)
-                
-                if !place.notes.isEmpty {
-                    Text(place.notes)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                }
             }
         }
         .padding(.vertical, 4)

@@ -1,16 +1,9 @@
-//
-//  TripListView.swift
-//  groupProject
-//
-//   .
-//
-
 import SwiftUI
 
 struct TripListView: View {
     @StateObject private var viewModel = TripListViewModel()
     @State private var showingAddTrip = false
-    
+
     var body: some View {
         NavigationView {
             ZStack {
@@ -26,14 +19,20 @@ struct TripListView: View {
             }
             .navigationTitle("My Trips")
             .toolbar {
+                // "Create New Trip" (plus button) at top right
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingAddTrip = true
                     } label: {
-                        Image(systemName: "plus")
+                        HStack {
+                            Image(systemName: "plus")
+                            Text("New Trip")
+                        }
                     }
                 }
-                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                        EditButton()
+                }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Menu {
                         Picker("Filter", selection: $viewModel.filterOption) {
@@ -52,21 +51,25 @@ struct TripListView: View {
             }
         }
     }
-    
+
     private var tripsList: some View {
         List {
             ForEach(viewModel.filteredTrips) { trip in
-                NavigationLink(destination: TripDetailView(trip: trip, listViewModel: viewModel)) {
+                NavigationLink(
+                    destination: TripDetailView(trip: trip, listViewModel: viewModel)
+                ) {
                     TripCardView(trip: trip)
                 }
             }
-            .onDelete { indexSet in
-                indexSet.forEach { index in
-                    let trip = viewModel.filteredTrips[index]
-                    viewModel.deleteTrip(trip)
-                }
-            }
+            .onDelete(perform: deleteTrips)
         }
         .listStyle(.insetGrouped)
+    }
+
+    private func deleteTrips(at offsets: IndexSet) {
+        let tripsToDelete = offsets.map { viewModel.filteredTrips[$0] }
+        for trip in tripsToDelete {
+            viewModel.deleteTrip(trip)
+        }
     }
 }

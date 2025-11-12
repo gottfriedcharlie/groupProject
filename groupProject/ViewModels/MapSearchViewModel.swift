@@ -24,24 +24,27 @@ struct GooglePlacesResult: Identifiable, Hashable {
     }
 }
 
+// MARK: - Main ViewModel (with LocationDelegate at class level)
 @MainActor
 final class MapSearchViewModel: NSObject, ObservableObject {
-    @Published var searchText = ""
-    @Published var searchResults: [GooglePlacesResult] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
+    // MARK: - Published Properties (trigger UI updates)
+    @Published var searchText = ""                      // Live search string
+    @Published var searchResults: [GooglePlacesResult] = [] // Results to display
+    @Published var isLoading = false                    // Show/hide spinner indicator
+    @Published var errorMessage: String?                // Errors sent to UI
     @Published var userLocation: CLLocationCoordinate2D?
     
     private var locationManager: CLLocationManager
     private let dataManager = DataManager.shared
-    private let apiKey = "AIzaSyAI4XzQoWrI6enQ6qVFRFqP5rDckKuX9c8" // Replace with your actual API key
+    private let apiKey = "AIzaSyAI4XzQoWrI6enQ6qVFRFqP5rDckKuX9c8"          // Secure your key elsewhere for production
     
     override init() {
         self.locationManager = CLLocationManager()
         super.init()
-        setupLocationManager()
+        setupLocationManager()                          // Configure location manager at init
     }
     
+    // MARK: - Location Authorization and Updates
     private func setupLocationManager() {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
@@ -49,31 +52,31 @@ final class MapSearchViewModel: NSObject, ObservableObject {
         locationManager.startUpdatingLocation()
     }
     
+    // MARK: - Google Places Search
+    /// Triggered when user types (called in .onChange in your view)
     func searchNearby(query: String) {
         guard let userLocation = userLocation else {
             errorMessage = "Location not available. Please enable location services."
             print("❌ Location not available")
             return
         }
-        
         guard !query.isEmpty else { return }
         
         isLoading = true
         errorMessage = nil
         
-        // Check if API key is set
+        // Ensure API key is set
         if apiKey == "YOUR_GOOGLE_API_KEY_HERE" {
             errorMessage = "API key not configured. Please add your Google Places API key."
             isLoading = false
             return
         }
         
-        // Using the new Places API (Text Search)
         let urlString = "https://places.googleapis.com/v1/places:searchText"
         var request = URLRequest(url: URL(string: urlString)!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("AIzaSyAI4XzQoWrI6enQ6qVFRFqP5rDckKuX9c8", forHTTPHeaderField: "X-Goog-Api-Key")
+        request.setValue(apiKey, forHTTPHeaderField: "X-Goog-Api-Key")
         request.setValue("places.name,places.displayName,places.formattedAddress,places.location,places.types,places.internationalPhoneNumber,places.rating,places.userRatingCount", forHTTPHeaderField: "X-Goog-FieldMask")
         
         let body: [String: Any] = [
@@ -88,7 +91,6 @@ final class MapSearchViewModel: NSObject, ObservableObject {
                 ]
             ]
         ]
-        
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         print("🔍 Searching for: \(query)")
@@ -96,29 +98,23 @@ final class MapSearchViewModel: NSObject, ObservableObject {
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 self?.isLoading = false
-                
                 if let error = error {
                     self?.errorMessage = "Network error: \(error.localizedDescription)"
                     print("❌ Search error: \(error)")
                     return
                 }
-                
                 guard let data = data else {
                     self?.errorMessage = "No data received"
                     return
                 }
-                
-                // Print raw response for debugging
+                // Debug: show raw response
                 if let jsonString = String(data: data, encoding: .utf8) {
                     print("📡 API Response: \(jsonString)")
                 }
-                
                 do {
                     let decoder = JSONDecoder()
                     let response = try decoder.decode(NewGooglePlacesResponse.self, from: data)
-                    
                     print("✅ Found \(response.places.count) places")
-                    
                     if !response.places.isEmpty {
                         self?.searchResults = response.places.map { place in
                             GooglePlacesResult(
@@ -135,6 +131,7 @@ final class MapSearchViewModel: NSObject, ObservableObject {
                         }
                     } else {
                         self?.errorMessage = "No places found for '\(query)'. Try a different search."
+                        self?.searchResults = []
                     }
                 } catch {
                     self?.errorMessage = "Failed to decode response: \(error.localizedDescription)"
@@ -144,10 +141,10 @@ final class MapSearchViewModel: NSObject, ObservableObject {
         }.resume()
     }
     
+    // Determines place category for result heuristics in UI/app logic.
     func categorizePlace(_ result: GooglePlacesResult) -> PlaceCategory {
         let types = result.placeTypes.map { $0.lowercased() }
         let name = result.name.lowercased()
-        
         if types.contains("restaurant") || name.contains("restaurant") || name.contains("cafe") {
             return .restaurant
         } else if types.contains("lodging") || types.contains("hotel") {
@@ -163,7 +160,7 @@ final class MapSearchViewModel: NSObject, ObservableObject {
     }
 }
 
-// MARK: - Google Places API (New) Response Models
+// MARK: - Google Places API Response Models
 struct NewGooglePlacesResponse: Codable {
     let places: [NewPlace]
 }
@@ -211,13 +208,17 @@ struct LatLng: Codable {
     let longitude: Double
 }
 
+// MARK: - CLLocationManagerDelegate Implementation
+@MainActor
 extension MapSearchViewModel: CLLocationManagerDelegate {
+    // Updates userLocation when a new location is available.
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         self.userLocation = location.coordinate
         print("📍 User location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
     }
     
+    // Handles location failures and updates error message.
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         errorMessage = "Location error: \(error.localizedDescription)"
         print("❌ Location error: \(error)")

@@ -9,14 +9,16 @@ import Foundation
 
 struct MockData {
     static let sampleTrip1 = Trip(
+        name: "Tokyo Adventure",                // <-- Add this line!
         destination: "Tokyo, Japan",
         startDate: Date().addingTimeInterval(86400 * 30),
         endDate: Date().addingTimeInterval(86400 * 37),
         description: "Explore the vibrant streets of Tokyo, visit temples, and enjoy amazing food!",
         budget: 3500
     )
-    
+
     static let sampleTrip2 = Trip(
+        name: "Paris Escape",                   // <-- Add this line!
         destination: "Paris, France",
         startDate: Date().addingTimeInterval(-86400 * 60),
         endDate: Date().addingTimeInterval(-86400 * 53),

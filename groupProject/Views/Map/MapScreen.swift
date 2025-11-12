@@ -65,7 +65,7 @@ struct MapScreen: View {
                     Button {
                         showingSearch = true
                     } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "magnifyingglass")
                     }
                     .tint(.blue)
                 }
@@ -201,7 +201,7 @@ struct MapPinDetailSheet: View {
                     .padding()
                 }
                 
-                // Add to Itinerary Button
+                // Add Button
                 Button(action: {
                     itineraryViewModel.addPlace(place)
                     isAdded = true
@@ -211,7 +211,7 @@ struct MapPinDetailSheet: View {
                 }) {
                     HStack {
                         Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
-                        Text(isAdded ? "Added!" : "Add to Itinerary")
+                        Text(isAdded ? "Added!" : "Add")
                     }
                     .font(.headline)
                     .foregroundColor(.white)

@@ -11,6 +11,7 @@ struct EditTripView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var listViewModel: TripListViewModel
     
+    @State private var name: String
     @State private var destination: String
     @State private var startDate: Date
     @State private var endDate: Date
@@ -22,6 +23,7 @@ struct EditTripView: View {
     init(trip: Trip, listViewModel: TripListViewModel) {
         self.tripId = trip.id
         self.listViewModel = listViewModel
+        _name = State(initialValue: trip.name)
         _destination = State(initialValue: trip.destination)
         _startDate = State(initialValue: trip.startDate)
         _endDate = State(initialValue: trip.endDate)
@@ -67,6 +69,7 @@ struct EditTripView: View {
                     Button("Save") {
                         let updatedTrip = Trip(
                             id: tripId,
+                            name: name,
                             destination: destination,
                             startDate: startDate,
                             endDate: endDate,

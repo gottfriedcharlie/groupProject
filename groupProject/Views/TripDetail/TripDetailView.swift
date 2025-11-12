@@ -1,10 +1,3 @@
-//
-//  TripDetailView.swift
-//  groupProject
-//
-//   .
-//
-
 import SwiftUI
 
 struct TripDetailView: View {
@@ -13,9 +6,12 @@ struct TripDetailView: View {
     @State private var showingAddPlace = false
     @State private var showingEditTrip = false
     
+    let tripId: UUID  // Add this to track which trip we're editing
+    
     init(trip: Trip, listViewModel: TripListViewModel) {
         _viewModel = StateObject(wrappedValue: TripDetailViewModel(trip: trip))
         self.listViewModel = listViewModel
+        self.tripId = trip.id
     }
     
     var body: some View {
@@ -25,9 +21,14 @@ struct TripDetailView: View {
                     HStack {
                         Image(systemName: "mappin.and.ellipse")
                             .foregroundColor(.blue)
-                        Text(viewModel.trip.destination)
-                            .font(.title2)
-                            .fontWeight(.bold)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(viewModel.trip.name)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                            Text(viewModel.trip.destination)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     
                     HStack {
@@ -54,20 +55,6 @@ struct TripDetailView: View {
                 .padding(.vertical, 8)
             }
             
-            Section {
-                HStack {
-                    Text("Places to Visit")
-                        .font(.headline)
-                    Spacer()
-                    Button {
-                        showingAddPlace = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.blue)
-                    }
-                }
-            }
-            
             if viewModel.places.isEmpty {
                 Section {
                     Text("No places added yet")
@@ -85,27 +72,48 @@ struct TripDetailView: View {
                             .onDelete { indexSet in
                                 indexSet.forEach { index in
                                     viewModel.deletePlace(categoryPlaces[index])
+                                    saveChanges()  // Save after deleting
                                 }
                             }
                         }
                     }
                 }
             }
+            Section(header: Text("Places")) {
+                ForEach(viewModel.places) { place in
+                    VStack(alignment: .leading) {
+                        Text(place.name).font(.headline)
+                        Text(place.address).font(.subheadline).foregroundColor(.secondary)
+                    }
+                }
+                .onDelete(perform: viewModel.removePlaces)
+                .onMove(perform: viewModel.movePlaces)
+            }
         }
         .navigationTitle("Trip Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Edit") {
-                    showingEditTrip = true
+                    EditButton()
                 }
-            }
         }
         .sheet(isPresented: $showingAddPlace) {
-            AddPlaceView(tripId: viewModel.trip.id, viewModel: viewModel)
+            AddPlaceView { newPlace in
+                viewModel.addPlace(newPlace)
+                saveChanges()  // Save after adding
+            }
         }
         .sheet(isPresented: $showingEditTrip) {
             EditTripView(trip: viewModel.trip, listViewModel: listViewModel)
         }
+        .onDisappear {
+            saveChanges()  // Save when leaving the view
+        }
     }
+    
+    // Add this helper function
+    private func saveChanges() {
+        listViewModel.updateTrip(viewModel.trip)
+    }
+
 }

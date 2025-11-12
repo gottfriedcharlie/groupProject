@@ -2,8 +2,6 @@
 //  Place.swift
 //  groupProject
 //
-//   .
-//
 
 import Foundation
 import CoreLocation

@@ -1,85 +1,89 @@
-//
-//  AddPlaceView.swift
-//  groupProject
-//
-//   .
-//
-
 import SwiftUI
 
 struct AddPlaceView: View {
+    var onSave: (ItineraryPlace) -> Void
     @Environment(\.dismiss) var dismiss
-    let tripId: UUID
-    @ObservedObject var viewModel: TripDetailViewModel
-    
-    @State private var name = ""
-    @State private var category: PlaceCategory = .restaurant
-    @State private var notes = ""
-    @State private var latitude: Double = 0
-    @State private var longitude: Double = 0
-    
+    @StateObject private var searchViewModel = MapSearchViewModel()
+    @State private var searchText = ""
+
     var body: some View {
         NavigationView {
-            Form {
-                Section("Place Info") {
-                    TextField("Name", text: $name)
-                    
-                    Picker("Category", selection: $category) {
-                        ForEach(PlaceCategory.allCases, id: \.self) { category in
-                            Label(category.rawValue, systemImage: category.icon)
-                                .tag(category)
+            VStack {
+                PlaceSearchBar(text: $searchText, onSearch: {
+                    searchViewModel.searchNearby(query: searchText)
+                })
+                
+                if searchViewModel.isLoading {
+                    ProgressView("Searching...")
+                        .padding()
+                } else if searchViewModel.searchResults.isEmpty && !searchText.isEmpty {
+                    Text("No places found")
+                        .foregroundColor(.secondary)
+                        .padding()
+                } else {
+                    List(searchViewModel.searchResults) { place in
+                        Button(action: {
+                            onSave(ItineraryPlace(from: place))
+                            dismiss()
+                        }) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(place.name)
+                                    .font(.headline)
+                                Text(place.address)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                if let rating = place.rating {
+                                    HStack {
+                                        Image(systemName: "star.fill")
+                                            .foregroundColor(.yellow)
+                                            .font(.caption)
+                                        Text(String(format: "%.1f", rating))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 4)
                         }
                     }
                 }
                 
-                Section("Location") {
-                    HStack {
-                        Text("Latitude")
-                        Spacer()
-                        TextField("0.0", value: $latitude, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    
-                    HStack {
-                        Text("Longitude")
-                        Spacer()
-                        TextField("0.0", value: $longitude, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                    }
-                }
-                
-                Section("Notes") {
-                    TextEditor(text: $notes)
-                        .frame(height: 80)
+                Spacer()
+            }
+            .onChange(of: searchText) { oldValue, newValue in
+                if newValue.count >= 3 {
+                    searchViewModel.searchNearby(query: newValue)
                 }
             }
             .navigationTitle("Add Place")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        let place = Place(
-                            name: name,
-                            category: category,
-                            latitude: latitude,
-                            longitude: longitude,
-                            notes: notes,
-                            tripId: tripId
-                        )
-                        viewModel.addPlace(place)
-                        dismiss()
-                    }
-                    .disabled(name.isEmpty)
-                }
             }
         }
+    }
+}
+
+struct PlaceSearchBar: View {
+    @Binding var text: String
+    var onSearch: () -> Void
+    
+    var body: some View {
+        HStack {
+            TextField("Search for a place", text: $text)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .onSubmit {
+                    onSearch()
+                }
+            
+            Button(action: onSearch) {
+                Image(systemName: "magnifyingglass")
+            }
+            .disabled(text.isEmpty)
+        }
+        .padding()
     }
 }

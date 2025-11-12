@@ -1,108 +1,125 @@
-//
-//  MapSearchView.swift
-//  groupProject
-//
-
 import SwiftUI
 import MapKit
 
+// Main search UI for finding places using Google Places.
+// Results update *as you type*—no need to press enter.
 struct MapSearchView: View {
     @ObservedObject var viewModel: MapSearchViewModel
-    @Environment(\.dismiss) var dismiss
     let onAddPlace: (GooglePlacesResult, PlaceCategory) -> Void
     @State private var selectedResult: GooglePlacesResult?
+    @Environment(\.dismiss) var dismiss
     
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                SearchBar(text: $viewModel.searchText, onSearch: {
-                    viewModel.searchNearby(query: viewModel.searchText)
-                })
-                .padding()
-                
-                if let errorMessage = viewModel.errorMessage {
-                    VStack {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.subheadline)
-                    }
+                // Search bar. Typing updates `viewModel.searchText` live.
+                SearchBar(text: $viewModel.searchText)
                     .padding()
+                
+                // Search as you type – perform the query on every text change.
+                    .onChange(of: viewModel.searchText) { newQuery in
+                        viewModel.searchNearby(query: newQuery)
+                    }
+                    
+                // Display error message if search fails.
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .font(.subheadline)
+                        .padding()
                 }
                 
+                // Show loading indicator during search.
                 if viewModel.isLoading {
                     LoadingView()
                         .frame(maxHeight: .infinity)
-                } else if viewModel.searchResults.isEmpty && !viewModel.searchText.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 48))
-                            .foregroundColor(.gray)
-                        Text("No Results Found")
-                            .font(.headline)
-                        Text("Try searching for different keywords")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxHeight: .infinity)
-                } else if !viewModel.searchResults.isEmpty {
+                }
+                // Show "no results" UI if nothing found and user has typed something.
+                else if viewModel.searchResults.isEmpty && !viewModel.searchText.isEmpty {
+                    SearchStatusView(
+                        icon: "magnifyingglass",
+                        title: "No Results Found",
+                        subtitle: "Try searching for different keywords"
+                    )
+                }
+                // Show results in a scrollable list.
+                else if !viewModel.searchResults.isEmpty {
                     List(viewModel.searchResults) { result in
-                        SearchResultRow(result: result) {
-                            selectedResult = result
-                        }
+                        SearchResultRow(
+                            result: result,
+                            userLocation: viewModel.userLocation,       // <-- pass this!
+                            onTap: { selectedResult = result }
+                        )
                     }
                     .listStyle(.plain)
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "map")
-                            .font(.system(size: 48))
-                            .foregroundColor(.gray)
-                        Text("Search for Places")
-                            .font(.headline)
-                        Text("Search for restaurants, museums, parks, and more near you")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxHeight: .infinity)
-                    .padding()
+                }
+                // Default prompt when no query is active.
+                else {
+                    SearchStatusView(
+                        icon: "map",
+                        title: "Search for Places",
+                        subtitle: "Search for restaurants, museums, parks, and more near you"
+                    )
                 }
             }
             .navigationTitle("Find Places")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
             }
         }
+        // Show details and option to add the place when a result is tapped.
         .sheet(item: $selectedResult) { result in
             PlaceDetailSheet(
                 place: result,
+                userLocation: viewModel.userLocation,
                 onAdd: {
                     let category = viewModel.categorizePlace(result)
                     onAddPlace(result, category)
                     dismiss()
                 }
             )
+            .presentationDetents([.large])
         }
     }
 }
 
+// Reusable component for displaying empty and search prompt states.
+struct SearchStatusView: View {
+    let icon: String      // SF Symbol name
+    let title: String     // Main heading
+    let subtitle: String  // Secondary advice
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 48))
+                .foregroundColor(.gray)
+            Text(title)
+                .font(.headline)
+            Text(subtitle)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxHeight: .infinity)
+        .padding()
+    }
+}
+
+// Material search bar UI with built-in clear button.
+// Type triggers live updates via binding.
 struct SearchBar: View {
     @Binding var text: String
-    let onSearch: () -> Void
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.gray)
-            
             TextField("Search ice cream, museums, restaurants...", text: $text)
                 .textInputAutocapitalization(.none)
-                .onSubmit(onSearch)
-            
             if !text.isEmpty {
                 Button(action: { text = "" }) {
                     Image(systemName: "xmark.circle.fill")
@@ -116,13 +133,27 @@ struct SearchBar: View {
     }
 }
 
+import CoreLocation
+import SwiftUI
+
+// A SwiftUI row that displays summary info for a search result (place),
+// including name, address, rating, (and now distance if available).
 struct SearchResultRow: View {
     let result: GooglePlacesResult
+    let userLocation: CLLocationCoordinate2D?   // <-- pass this from parent view!
     let onTap: () -> Void
-    
+
+    // Helper to calculate straight-line distance user <-> place in meters
+    private var distanceAway: Double? {
+        guard let userLoc = userLocation else { return nil }
+        let user = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
+        let placeLoc = CLLocation(latitude: result.latitude, longitude: result.longitude)
+        return user.distance(from: placeLoc)
+    }
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(result.name)
                         .font(.body)
@@ -134,25 +165,31 @@ struct SearchResultRow: View {
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                     
-                    if let rating = result.rating {
-                        HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .font(.caption2)
-                                .foregroundColor(.orange)
-                            Text(String(format: "%.1f", rating))
-                                .font(.caption2)
-                                .foregroundColor(.primary)
-                            if let total = result.userRatingsTotal {
-                                Text("(\(total))")
+                    HStack(spacing: 8) {
+                        // Rating stars and count
+                        if let rating = result.rating {
+                            HStack(spacing: 4) {
+                                Image(systemName: "star.fill")
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.orange)
+                                Text(String(format: "%.1f", rating))
+                                    .font(.caption2)
+                                if let total = result.userRatingsTotal {
+                                    Text("(\(total))")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
                             }
+                        }
+                        // Distance (if available)
+                        if let meters = distanceAway {
+                            Text(String(format: "%.1f km", meters / 1000.0))
+                                .font(.caption2)
+                                .foregroundColor(.blue)
                         }
                     }
                 }
-                
                 Spacer()
-                
                 Image(systemName: "chevron.right")
                     .foregroundColor(.gray)
             }
@@ -162,100 +199,95 @@ struct SearchResultRow: View {
     }
 }
 
+import SwiftUI
+import CoreLocation
+
+// Displays detailed information about a selected place (from Google Places search),
+// including its name, address, rating, phone, types, coordinates, and distance from the user.
 struct PlaceDetailSheet: View {
     let place: GooglePlacesResult
+    let userLocation: CLLocationCoordinate2D?    // User's current location for distance calculation
     @Environment(\.dismiss) var dismiss
     let onAdd: () -> Void
-    
+
+    // Calculate the straight-line distance from user to place (in meters). Returns nil if unavailable.
+    private var distanceAway: Double? {
+        guard let userLocation = userLocation else { return nil }
+        let userLoc = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
+        let placeLoc = CLLocation(latitude: place.latitude, longitude: place.longitude)
+        return userLoc.distance(from: placeLoc)
+    }
+
     var body: some View {
         NavigationView {
             VStack(spacing: 16) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // Name
+                        // Place name/title
                         Text(place.name)
-                            .font(.title2)
+                            .font(.title)
                             .fontWeight(.bold)
                         
-                        // Address
-                        HStack(spacing: 8) {
-                            Image(systemName: "location.fill")
-                                .foregroundColor(.red)
-                            Text(place.address)
-                                .font(.body)
-                        }
-                        
-                        Divider()
-                        
-                        // Rating
+                        // Place address
+                        Text(place.address)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        // Rating and number of ratings, if available
                         if let rating = place.rating {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Rating")
+                            HStack(spacing: 6) {
+                                Image(systemName: "star.fill")
+                                    .foregroundColor(.orange)
+                                Text(String(format: "%.1f", rating))
                                     .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                HStack(spacing: 8) {
-                                    HStack(spacing: 2) {
-                                        ForEach(0..<5, id: \.self) { index in
-                                            Image(systemName: index < Int(rating) ? "star.fill" : "star")
-                                                .font(.caption)
-                                                .foregroundColor(.orange)
-                                        }
-                                    }
-                                    Text(String(format: "%.1f", rating))
-                                        .fontWeight(.semibold)
-                                    if let total = place.userRatingsTotal {
-                                        Text("(\(total) reviews)")
-                                            .foregroundColor(.secondary)
-                                    }
+                                if let count = place.userRatingsTotal {
+                                    Text("(\(count) ratings)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
                             }
-                            
-                            Divider()
                         }
-                        
-                        // Phone
-                        if let phone = place.phoneNumber, !phone.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Phone")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                Link(phone, destination: URL(string: "tel:\(phone)")!)
-                                    .foregroundColor(.blue)
+
+                        // Phone number, if available
+                        if let phone = place.phoneNumber {
+                            HStack(spacing: 6) {
+                                Image(systemName: "phone")
+                                Text(phone)
                             }
-                            
-                            Divider()
+                            .font(.subheadline)
                         }
-                        
-                        // Types
+
+                        // Place types/categories, if any
                         if !place.placeTypes.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Type")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                
-                                HStack(spacing: 8) {
-                                    ForEach(place.placeTypes.prefix(3), id: \.self) { type in
-                                        Text(type.capitalized)
-                                            .font(.caption)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(Color.blue.opacity(0.1))
-                                            .foregroundColor(.blue)
-                                            .cornerRadius(8)
-                                    }
-                                    Spacer()
-                                }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Types:")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(place.placeTypes.joined(separator: ", "))
+                                    .font(.caption2)
                             }
+                        }
+
+                        // Show lat/lng for completeness (optional)
+                        Text(String(format: "Lat: %.5f, Lng: %.5f", place.latitude, place.longitude))
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+
+                        // Distance away from user, if available
+                        if let meters = distanceAway {
+                            Text(String(format: "Distance: %.1f km", meters/1000))
+                                .font(.caption)
+                                .foregroundColor(.blue)
                         }
                     }
                     .padding()
                 }
-                
-                // Add to Itinerary Button
+
+                // "Add" button at bottom
                 Button(action: onAdd) {
                     HStack {
                         Image(systemName: "plus.circle.fill")
-                        Text("Add to Itinerary")
+                        Text("Add")
                     }
                     .font(.headline)
                     .foregroundColor(.white)
@@ -269,9 +301,7 @@ struct PlaceDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        dismiss()
-                    }
+                    Button("Close") { dismiss() }
                 }
             }
         }
