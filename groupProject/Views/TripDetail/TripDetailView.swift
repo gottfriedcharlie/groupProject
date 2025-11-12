@@ -6,16 +6,17 @@ struct TripDetailView: View {
     @State private var showingAddPlace = false
     @State private var showingEditTrip = false
     
-    let tripId: UUID  // Add this to track which trip we're editing
+    let tripId: UUID
     
     init(trip: Trip, listViewModel: TripListViewModel) {
-        _viewModel = StateObject(wrappedValue: TripDetailViewModel(trip: trip))
+        _viewModel = StateObject(wrappedValue: TripDetailViewModel(trip: trip, parentViewModel: listViewModel))
         self.listViewModel = listViewModel
         self.tripId = trip.id
     }
     
     var body: some View {
         List {
+            // MARK: - Trip Info Section
             Section("Trip Info") {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -55,65 +56,142 @@ struct TripDetailView: View {
                 .padding(.vertical, 8)
             }
             
-            if viewModel.places.isEmpty {
+            // MARK: - Check what we have
+            if viewModel.trip.itinerary.isEmpty {
                 Section {
                     Text("No places added yet")
                         .foregroundColor(.secondary)
                         .italic()
                 }
             } else {
-                ForEach(PlaceCategory.allCases, id: \.self) { category in
-                    let categoryPlaces = viewModel.places(for: category)
-                    if !categoryPlaces.isEmpty {
-                        Section(category.rawValue) {
-                            ForEach(categoryPlaces) { place in
-                                PlaceRowView(place: place)
-                            }
-                            .onDelete { indexSet in
-                                indexSet.forEach { index in
-                                    viewModel.deletePlace(categoryPlaces[index])
-                                    saveChanges()  // Save after deleting
-                                }
-                            }
+                // MARK: - Itinerary Summary Section
+                Section("Itinerary Summary") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Label("Total Stops", systemImage: "mappin.circle.fill")
+                                .font(.subheadline)
+                            Spacer()
+                            Text("\(viewModel.trip.itinerary.count)")
+                                .fontWeight(.semibold)
+                                .foregroundColor(.blue)
+                        }
+                        
+                        HStack {
+                            Label("Total Distance", systemImage: "road.lanes")
+                                .font(.subheadline)
+                            Spacer()
+                            Text(String(format: "%.1f km", viewModel.totalDistance))
+                                .fontWeight(.semibold)
+                                .foregroundColor(.green)
                         }
                     }
+                    .padding(.vertical, 4)
                 }
-            }
-            Section(header: Text("Places")) {
-                ForEach(viewModel.places) { place in
-                    VStack(alignment: .leading) {
-                        Text(place.name).font(.headline)
-                        Text(place.address).font(.subheadline).foregroundColor(.secondary)
+                
+                // MARK: - Itinerary Section
+                Section("Itinerary") {
+                    ForEach(Array(viewModel.trip.itinerary.enumerated()), id: \.element.id) { index, place in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 12) {
+                                // Number badge
+                                Text("\(index + 1)")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .frame(width: 24, height: 24)
+                                    .background(Color.blue)
+                                    .clipShape(Circle())
+                                
+                                // Place info
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(place.name)
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    
+                                    Text(place.address)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                    
+                                    if let rating = place.rating {
+                                        HStack(spacing: 2) {
+                                            Image(systemName: "star.fill")
+                                                .font(.caption2)
+                                                .foregroundColor(.orange)
+                                            Text(String(format: "%.1f", rating))
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                // Delete button
+                                Button(action: {
+                                    viewModel.deletePlace(place)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.red)
+                                        .font(.title3)
+                                }
+                            }
+                            
+                            // Distance to next location
+                            if let distanceToNext = viewModel.distanceToNext(from: index) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "arrow.down")
+                                        .foregroundColor(.gray)
+                                        .font(.caption)
+                                    
+                                    Text("↓ \(String(format: "%.1f km to next", distanceToNext))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Spacer()
+                                }
+                                .padding(.leading, 36)
+                            }
+                        }
+                        .padding(.vertical, 8)
                     }
+                    .onDelete(perform: viewModel.removePlaces)
+                    .onMove(perform: viewModel.movePlaces)
                 }
-                .onDelete(perform: viewModel.removePlaces)
-                .onMove(perform: viewModel.movePlaces)
             }
         }
         .navigationTitle("Trip Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                EditButton()
+                
+                if !viewModel.trip.itinerary.isEmpty {
+                    Button(action: { showingAddPlace = true }) {
+                        Image(systemName: "plus.circle")
+                    }
                 }
+            }
         }
         .sheet(isPresented: $showingAddPlace) {
             AddPlaceView { newPlace in
                 viewModel.addPlace(newPlace)
-                saveChanges()  // Save after adding
             }
         }
         .sheet(isPresented: $showingEditTrip) {
             EditTripView(trip: viewModel.trip, listViewModel: listViewModel)
         }
-        .onDisappear {
-            saveChanges()  // Save when leaving the view
+        .onAppear {
+            // Refresh the trip data when view appears
+            if let latestTrip = listViewModel.trips.first(where: { $0.id == tripId }) {
+                viewModel.trip = latestTrip
+                viewModel.calculateTotalDistance()
+            }
         }
+        .onDisappear {
+            let updatedTrip = viewModel.trip
+            listViewModel.updateTrip(updatedTrip)
+        }
+        
     }
-    
-    // Add this helper function
-    private func saveChanges() {
-        listViewModel.updateTrip(viewModel.trip)
-    }
-
 }

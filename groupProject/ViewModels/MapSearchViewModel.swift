@@ -36,12 +36,16 @@ final class MapSearchViewModel: NSObject, ObservableObject {
     
     private var locationManager: CLLocationManager
     private let dataManager = DataManager.shared
-    private let apiKey = "AIzaSyAI4XzQoWrI6enQ6qVFRFqP5rDckKuX9c8"          // Secure your key elsewhere for production
+    private let apiKey = "AIzaSyAI4XzQoWrI6enQ6qVFRFqP5rDckKuX9c8"
+    
+    // MARK: - NEW: Track the current search center (for location-aware searches)
+    /// The location around which to search. Updates as user adds places to itinerary.
+    @Published var currentSearchCenter: CLLocationCoordinate2D?
     
     override init() {
         self.locationManager = CLLocationManager()
         super.init()
-        setupLocationManager()                          // Configure location manager at init
+        setupLocationManager()
     }
     
     // MARK: - Location Authorization and Updates
@@ -52,14 +56,19 @@ final class MapSearchViewModel: NSObject, ObservableObject {
         locationManager.startUpdatingLocation()
     }
     
+    // MARK: - NEW: Update search center when user adds a place
+    /// Call this after user adds a place to the itinerary to update search location
+    func updateSearchCenter(to coordinate: CLLocationCoordinate2D) {
+        self.currentSearchCenter = coordinate
+        print("📍 Search center updated to: \(coordinate.latitude), \(coordinate.longitude)")
+    }
+    
     // MARK: - Google Places Search
     /// Triggered when user types (called in .onChange in your view)
     func searchNearby(query: String) {
-        guard let userLocation = userLocation else {
-            errorMessage = "Location not available. Please enable location services."
-            print("❌ Location not available")
-            return
-        }
+        // Use current search center, fall back to user location, then default
+        let searchLocation = currentSearchCenter ?? userLocation ?? CLLocationCoordinate2D(latitude: 42.23943764672886, longitude: -71.80796616765598)
+        
         guard !query.isEmpty else { return }
         
         isLoading = true
@@ -84,16 +93,16 @@ final class MapSearchViewModel: NSObject, ObservableObject {
             "locationBias": [
                 "circle": [
                     "center": [
-                        "latitude": userLocation.latitude,
-                        "longitude": userLocation.longitude
+                        "latitude": searchLocation.latitude,
+                        "longitude": searchLocation.longitude
                     ],
-                    "radius": 5000.0
+                    "radius": 5000.0  // Search within 5km of current location
                 ]
             ]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
-        print("🔍 Searching for: \(query)")
+        print("🔍 Searching for: \(query) around (\(searchLocation.latitude), \(searchLocation.longitude))")
         
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
@@ -107,10 +116,7 @@ final class MapSearchViewModel: NSObject, ObservableObject {
                     self?.errorMessage = "No data received"
                     return
                 }
-                // Debug: show raw response
-                if let jsonString = String(data: data, encoding: .utf8) {
-                    print("📡 API Response: \(jsonString)")
-                }
+                
                 do {
                     let decoder = JSONDecoder()
                     let response = try decoder.decode(NewGooglePlacesResponse.self, from: data)
@@ -215,6 +221,12 @@ extension MapSearchViewModel: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         self.userLocation = location.coordinate
+        
+        // Initialize search center to user location if not already set
+        if currentSearchCenter == nil {
+            currentSearchCenter = location.coordinate
+        }
+        
         print("📍 User location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
     }
     
