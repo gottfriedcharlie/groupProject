@@ -266,6 +266,11 @@ struct ItineraryBuilderView: View {
             }
         }
         .onAppear {
+            // Loading the existing itinerary if there is one
+            if !trip.itinerary.isEmpty {
+                itineraryViewModel.currentOrderedPlaces = trip.itinerary
+                itineraryViewModel.itineraryPlaces = trip.itinerary
+            }
             itineraryViewModel.setSelectedTrip(trip)
             searchViewModel.updateSearchCenter(to: trip.destinationCoordinate ?? CLLocationCoordinate2D(latitude: 42.259, longitude: -71.808))
         }
@@ -287,147 +292,140 @@ struct ItineraryBuilderView: View {
             .presentationDetents([.medium, .large])
         }
     }
-  
+    
     private func saveItinerary() {
+        // Create updated trip with new itinerary
         var updatedTrip = trip
+        updatedTrip.itinerary = itineraryViewModel.currentOrderedPlaces
         
-        // Get the current ordered places
-        let itineraryPlaces = itineraryViewModel.currentOrderedPlaces
+        // Update the trip in the list view model
+        tripListViewModel.updateTrip(updatedTrip)
         
-        // Assign directly
-        updatedTrip.itinerary = itineraryPlaces
+        // Clear the itinerary builder for next use
+        itineraryViewModel.clearItinerary()
         
-        // Save asynchronously to avoid blocking UI
-        DispatchQueue.global(qos: .userInitiated).async {
-            // Save to the view model on background thread
-            self.tripListViewModel.updateTrip(updatedTrip)
-            
-            // Then dismiss on main thread
-            DispatchQueue.main.async {
-                self.dismiss()
-            }
+        // Dismiss the view
+        dismiss()
+    }
+    
+    // MARK: - Detail Sheet
+    struct ItineraryPlaceDetailSheet: View {
+        let place: GooglePlacesResult
+        let userLocation: CLLocationCoordinate2D?
+        let onAdd: () -> Void
+        
+        @Environment(\.dismiss) var dismiss
+        @State private var isAdded = false
+        
+        private var distanceAway: Double? {
+            guard let userLocation = userLocation else { return nil }
+            let userLoc = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
+            let placeLoc = CLLocation(latitude: place.latitude, longitude: place.longitude)
+            return userLoc.distance(from: placeLoc)
         }
-    }
-    
-}
-
-// MARK: - Detail Sheet
-struct ItineraryPlaceDetailSheet: View {
-    let place: GooglePlacesResult
-    let userLocation: CLLocationCoordinate2D?
-    let onAdd: () -> Void
-    
-    @Environment(\.dismiss) var dismiss
-    @State private var isAdded = false
-    
-    private var distanceAway: Double? {
-        guard let userLocation = userLocation else { return nil }
-        let userLoc = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
-        let placeLoc = CLLocation(latitude: place.latitude, longitude: place.longitude)
-        return userLoc.distance(from: placeLoc)
-    }
-
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 16) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(place.name)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        HStack(spacing: 8) {
-                            Image(systemName: "location.fill")
-                                .foregroundColor(.red)
-                            Text(place.address)
-                                .font(.body)
-                        }
-                        
-                        Divider()
-                        
-                        if let rating = place.rating {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Rating")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                HStack(spacing: 8) {
-                                    HStack(spacing: 2) {
-                                        ForEach(0..<5, id: \.self) { index in
-                                            Image(systemName: index < Int(rating) ? "star.fill" : "star")
-                                                .font(.caption)
-                                                .foregroundColor(.orange)
+        
+        var body: some View {
+            NavigationView {
+                VStack(spacing: 16) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(place.name)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                            
+                            HStack(spacing: 8) {
+                                Image(systemName: "location.fill")
+                                    .foregroundColor(.red)
+                                Text(place.address)
+                                    .font(.body)
+                            }
+                            
+                            Divider()
+                            
+                            if let rating = place.rating {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Rating")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                    HStack(spacing: 8) {
+                                        HStack(spacing: 2) {
+                                            ForEach(0..<5, id: \.self) { index in
+                                                Image(systemName: index < Int(rating) ? "star.fill" : "star")
+                                                    .font(.caption)
+                                                    .foregroundColor(.orange)
+                                            }
+                                        }
+                                        Text(String(format: "%.1f", rating))
+                                            .fontWeight(.semibold)
+                                        if let total = place.userRatingsTotal {
+                                            Text("(\(total) reviews)")
+                                                .foregroundColor(.secondary)
                                         }
                                     }
-                                    Text(String(format: "%.1f", rating))
-                                        .fontWeight(.semibold)
-                                    if let total = place.userRatingsTotal {
-                                        Text("(\(total) reviews)")
-                                            .foregroundColor(.secondary)
-                                    }
                                 }
+                                
+                                Divider()
                             }
                             
-                            Divider()
-                        }
-                        
-                        if let phone = place.phoneNumber, !phone.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Phone")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                Link(phone, destination: URL(string: "tel:\(phone)")!)
+                            if let phone = place.phoneNumber, !phone.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Phone")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                    Link(phone, destination: URL(string: "tel:\(phone)")!)
+                                        .foregroundColor(.blue)
+                                }
+                                
+                                Divider()
+                            }
+                            
+                            if let meters = distanceAway {
+                                Text(String(format: "Distance: %.1f km away", meters/1000))
+                                    .font(.caption)
                                     .foregroundColor(.blue)
                             }
-                            
-                            Divider()
                         }
-                        
-                        if let meters = distanceAway {
-                            Text(String(format: "Distance: %.1f km away", meters/1000))
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                        }
+                        .padding()
                     }
+                    
+                    Button(action: {
+                        onAdd()
+                        isAdded = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            dismiss()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
+                            Text(isAdded ? "Added!" : "Add to Itinerary")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(isAdded ? Color.green : Color.blue)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isAdded)
                     .padding()
                 }
-                
-                Button(action: {
-                    onAdd()
-                    isAdded = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        dismiss()
-                    }
-                }) {
-                    HStack {
-                        Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
-                        Text(isAdded ? "Added!" : "Add to Itinerary")
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(isAdded ? Color.green : Color.blue)
-                    .cornerRadius(12)
-                }
-                .disabled(isAdded)
-                .padding()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        dismiss()
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Close") {
+                            dismiss()
+                        }
                     }
                 }
             }
         }
     }
-}
-
-#Preview {
-    NavigationView {
-        ItineraryBuilderView(trip: MockData.sampleTrip1)
-            .environmentObject(ItineraryViewModel())
-            .environmentObject(TripListViewModel())
+    
+    #Preview {
+        NavigationView {
+            ItineraryBuilderView(trip: MockData.sampleTrip1)
+                .environmentObject(ItineraryViewModel())
+                .environmentObject(TripListViewModel())
+        }
     }
 }

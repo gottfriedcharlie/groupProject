@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct TripListView: View {
-    @StateObject private var viewModel = TripListViewModel()
+    // USE the shared view model from environment instead of creating a new one
+    @EnvironmentObject var viewModel: TripListViewModel
     @State private var showingAddTrip = false
 
     var body: some View {
@@ -49,6 +50,11 @@ struct TripListView: View {
             .sheet(isPresented: $showingAddTrip) {
                 AddTripView(viewModel: viewModel)
             }
+            .onAppear {
+                // Reload trips when view appears
+                print("🔄 TripListView appeared - reloading trips")
+                viewModel.loadTrips()
+            }
         }
     }
 
@@ -64,6 +70,10 @@ struct TripListView: View {
             .onDelete(perform: deleteTrips)
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            // Pull to refresh
+            viewModel.loadTrips()
+        }
     }
 
     private func deleteTrips(at offsets: IndexSet) {
@@ -72,4 +82,9 @@ struct TripListView: View {
             viewModel.deleteTrip(trip)
         }
     }
+}
+
+#Preview {
+    TripListView()
+        .environmentObject(TripListViewModel())
 }

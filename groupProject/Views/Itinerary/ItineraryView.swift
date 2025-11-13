@@ -5,10 +5,10 @@ struct ItineraryView: View {
     @EnvironmentObject var itineraryViewModel: ItineraryViewModel
     @EnvironmentObject var tripListViewModel: TripListViewModel
     @State private var showingAddTrip = false
-    @State private var navigationPath: [Trip] = []  // NEW: Navigation path
+    @State private var navigationPath: [Trip] = []
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {  // NEW: Use NavigationStack
+        NavigationStack(path: $navigationPath) {
             ZStack {
                 if tripListViewModel.trips.isEmpty {
                     EmptyStateView(
@@ -40,6 +40,11 @@ struct ItineraryView: View {
             }
             .sheet(isPresented: $showingAddTrip) {
                 AddTripView(viewModel: tripListViewModel)
+            }
+            .onAppear {
+                // Reload trips when view appears
+                print("🔄 ItineraryView appeared - reloading trips")
+                tripListViewModel.loadTrips()
             }
         }
     }
@@ -95,6 +100,10 @@ struct ItineraryView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            // Pull to refresh
+            tripListViewModel.loadTrips()
+        }
     }
 }
 

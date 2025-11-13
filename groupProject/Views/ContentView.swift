@@ -6,6 +6,10 @@
 import SwiftUI
 
 struct ContentView: View {
+    // Get the shared view models from environment
+    @EnvironmentObject var tripListViewModel: TripListViewModel
+    @EnvironmentObject var itineraryViewModel: ItineraryViewModel
+    
     var body: some View {
         TabView {
             TripListView()
@@ -35,4 +39,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(TripListViewModel())
+        .environmentObject(ItineraryViewModel())
 }
