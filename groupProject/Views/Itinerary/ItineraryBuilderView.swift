@@ -379,11 +379,11 @@ struct ItineraryBuilderView: View {
                                 Divider()
                             }
                             
-                            if let meters = distanceAway {
+                            /* if let meters = distanceAway {
                                 Text(String(format: "Distance: %.1f km away", meters/1000))
                                     .font(.caption)
                                     .foregroundColor(.blue)
-                            }
+                            } */
                         }
                         .padding()
                     }
