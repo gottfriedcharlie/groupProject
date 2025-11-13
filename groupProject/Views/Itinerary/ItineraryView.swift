@@ -20,7 +20,7 @@ struct ItineraryView: View {
                     tripsList
                 }
             }
-            .navigationTitle("My Trips")
+            .navigationTitle("Itineraries")
             .navigationDestination(for: Trip.self) { trip in
                 ItineraryBuilderView(trip: trip)
                     .environmentObject(itineraryViewModel)

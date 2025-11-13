@@ -76,14 +76,14 @@ struct TripDetailView: View {
                                 .foregroundColor(.blue)
                         }
                         
-                        HStack {
+                        /* HStack {
                             Label("Total Distance", systemImage: "road.lanes")
                                 .font(.subheadline)
                             Spacer()
                             Text(String(format: "%.1f km", viewModel.totalDistance))
                                 .fontWeight(.semibold)
                                 .foregroundColor(.green)
-                        }
+                        } */
                     }
                     .padding(.vertical, 4)
                 }

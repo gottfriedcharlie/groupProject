@@ -33,15 +33,6 @@ struct ProfileView: View {
                             .foregroundColor(.green)
                     }
                 }
-                
-                Section("App Info") {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text("1.0.0")
-                            .foregroundColor(.secondary)
-                    }
-                }
             }
             .navigationTitle("Profile")
         }
