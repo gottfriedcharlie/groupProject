@@ -35,7 +35,7 @@ final class DataManager {
     
     func loadPlaces(for tripId: UUID) -> [Place] {
         let allPlaces = loadAllPlaces()
-        return allPlaces.filter { $0.tripId == tripId }
+        return allPlaces.filter { $0.tripId == tripId.uuidString}
     }
     
     func loadAllPlaces() -> [Place] {

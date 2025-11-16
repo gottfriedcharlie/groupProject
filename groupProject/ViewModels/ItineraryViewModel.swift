@@ -4,6 +4,31 @@ import MapKit
 
 
 @MainActor
+
+enum PlaceCategory: String, Codable, CaseIterable {
+    case restaurant
+    case hotel
+    case attraction
+    case museum
+    case park
+    case other
+
+    var icon: String {
+        switch self {
+        case .restaurant: return "fork.knife"
+        case .hotel: return "bed.double"
+        case .attraction: return "star"
+        case .museum: return "building.columns"
+        case .park: return "tree"
+        case .other: return "mappin"
+        }
+    }
+
+    var displayName: String {
+        rawValue.capitalized
+    }
+}
+
 final class ItineraryViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var itineraryPlaces: [ItineraryPlace] = []
@@ -42,7 +67,7 @@ final class ItineraryViewModel: ObservableObject {
     }
     
     // MARK: - NEW: Reorder places in itinerary
-    /// Move places around in the ordered list
+    // Move places around in the ordered list
     func movePlaces(from source: IndexSet, to destination: Int) {
         currentOrderedPlaces.move(fromOffsets: source, toOffset: destination)
         saveItinerary()
@@ -50,14 +75,14 @@ final class ItineraryViewModel: ObservableObject {
     
     // MARK: - Trip Association
     
-    /// Set the trip this itinerary is being built for
+    // Set the trip this itinerary is being built for
     func setSelectedTrip(_ trip: Trip) {
         self.selectedTrip = trip
         // Initialize search from trip's destination
         saveItinerary()
     }
     
-    /// Get the starting location for searches (trip destination or first place)
+    // Get the starting location for searches (trip destination or first place)
     func getSearchStartingLocation() -> CLLocationCoordinate2D? {
         // If trip has a destination coordinate, use that
         if let trip = selectedTrip, let coord = trip.destinationCoordinate {
@@ -70,7 +95,7 @@ final class ItineraryViewModel: ObservableObject {
         return nil
     }
     
-    /// Get the location for the next search (based on last added place)
+    // Get the location for the next search (based on last added place)
     func getNextSearchLocation() -> CLLocationCoordinate2D? {
         // Search from the last place added to the itinerary
         if let lastPlace = currentOrderedPlaces.last {
@@ -110,7 +135,7 @@ struct ItineraryPlace: Identifiable, Codable, Hashable {
     let address: String
     let latitude: Double
     let longitude: Double
-    let placeTypes: [String]
+    let category: PlaceCategory
     let phoneNumber: String?
     let rating: Double?
     let userRatingsTotal: Int?
@@ -121,22 +146,30 @@ struct ItineraryPlace: Identifiable, Codable, Hashable {
         self.address = result.address
         self.latitude = result.latitude
         self.longitude = result.longitude
-        self.placeTypes = result.placeTypes
+        self.category = ItineraryPlace.mapGoogleCategory(result.placeTypes) // NEW LINE
         self.phoneNumber = result.phoneNumber
         self.rating = result.rating
         self.userRatingsTotal = result.userRatingsTotal
     }
-    
-    func toGooglePlacesResult() -> GooglePlacesResult {
-        GooglePlacesResult(
-            id: id, name: name, address: address,
-            latitude: latitude, longitude: longitude,
-            placeTypes: placeTypes, phoneNumber: phoneNumber,
-            rating: rating, userRatingsTotal: userRatingsTotal
-        )
+
+    // Helper function (add these in your struct)
+    static func mapGoogleCategory(_ types: [String]) -> PlaceCategory {
+        for type in types {
+            switch type.lowercased() {
+                case "restaurant": return .restaurant
+                case "hotel": return .hotel
+                case "attraction": return .attraction
+                case "museum": return .museum
+                case "park": return .park
+                default: continue
+            }
+        }
+        return .other
     }
+
     
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
+
 }

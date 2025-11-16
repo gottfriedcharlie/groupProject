@@ -1,60 +1,46 @@
 import SwiftUI
 import MapKit
+import CoreLocation
 
-// Main search UI for finding places using Google Places.
-// Results update *as you type*—no need to press enter.
 struct MapSearchView: View {
     @ObservedObject var viewModel: MapSearchViewModel
     let onAddPlace: (GooglePlacesResult, PlaceCategory) -> Void
     @State private var selectedResult: GooglePlacesResult?
     @Environment(\.dismiss) var dismiss
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Search bar. Typing updates `viewModel.searchText` live.
                 SearchBar(text: $viewModel.searchText)
                     .padding()
-                
-                // Search as you type – perform the query on every text change.
                     .onChange(of: viewModel.searchText) { newQuery in
                         viewModel.searchNearby(query: newQuery)
                     }
-                    
-                // Display error message if search fails.
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                         .foregroundColor(.red)
                         .font(.subheadline)
                         .padding()
                 }
-                
-                // Show loading indicator during search.
                 if viewModel.isLoading {
                     LoadingView()
                         .frame(maxHeight: .infinity)
-                }
-                // Show "no results" UI if nothing found and user has typed something.
-                else if viewModel.searchResults.isEmpty && !viewModel.searchText.isEmpty {
+                } else if viewModel.searchResults.isEmpty && !viewModel.searchText.isEmpty {
                     SearchStatusView(
                         icon: "magnifyingglass",
                         title: "No Results Found",
                         subtitle: "Try searching for different keywords"
                     )
-                }
-                // Show results in a scrollable list.
-                else if !viewModel.searchResults.isEmpty {
+                } else if !viewModel.searchResults.isEmpty {
                     List(viewModel.searchResults) { result in
                         SearchResultRow(
                             result: result,
-                            userLocation: viewModel.userLocation,       // <-- pass this!
+                            userLocation: viewModel.userLocation,
                             onTap: { selectedResult = result }
                         )
                     }
                     .listStyle(.plain)
-                }
-                // Default prompt when no query is active.
-                else {
+                } else {
                     SearchStatusView(
                         icon: "map",
                         title: "Search for Places",
@@ -70,7 +56,6 @@ struct MapSearchView: View {
                 }
             }
         }
-        // Show details and option to add the place when a result is tapped.
         .sheet(item: $selectedResult) { result in
             PlaceDetailSheet(
                 place: result,
@@ -86,12 +71,11 @@ struct MapSearchView: View {
     }
 }
 
-// Reusable component for displaying empty and search prompt states.
 struct SearchStatusView: View {
-    let icon: String      // SF Symbol name
-    let title: String     // Main heading
-    let subtitle: String  // Secondary advice
-    
+    let icon: String
+    let title: String
+    let subtitle: String
+
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: icon)
@@ -109,8 +93,6 @@ struct SearchStatusView: View {
     }
 }
 
-// Material search bar UI with built-in clear button.
-// Type triggers live updates via binding.
 struct SearchBar: View {
     @Binding var text: String
 
@@ -133,23 +115,10 @@ struct SearchBar: View {
     }
 }
 
-import CoreLocation
-import SwiftUI
-
-// A SwiftUI row that displays summary info for a search result (place),
-// including name, address, rating, (and now distance if available).
 struct SearchResultRow: View {
     let result: GooglePlacesResult
-    let userLocation: CLLocationCoordinate2D?   // <-- pass this from parent view!
+    let userLocation: CLLocationCoordinate2D?
     let onTap: () -> Void
-
-    // Helper to calculate straight-line distance user <-> place in meters
-    private var distanceAway: Double? {
-        guard let userLoc = userLocation else { return nil }
-        let user = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
-        let placeLoc = CLLocation(latitude: result.latitude, longitude: result.longitude)
-        return user.distance(from: placeLoc)
-    }
 
     var body: some View {
         Button(action: onTap) {
@@ -159,14 +128,11 @@ struct SearchResultRow: View {
                         .font(.body)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
-                    
                     Text(result.address)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
-                    
                     HStack(spacing: 8) {
-                        // Rating stars and count
                         if let rating = result.rating {
                             HStack(spacing: 4) {
                                 Image(systemName: "star.fill")
@@ -181,9 +147,8 @@ struct SearchResultRow: View {
                                 }
                             }
                         }
-                        // Distance (if available)
-                        if let meters = distanceAway {
-                            Text(String(format: "%.1f km", meters / 1000.0))
+                        if let userLoc = userLocation {
+                            Text(formattedImperialDistance(from: userLoc, to: result.coordinate))
                                 .font(.caption2)
                                 .foregroundColor(.blue)
                         }
@@ -199,41 +164,23 @@ struct SearchResultRow: View {
     }
 }
 
-import SwiftUI
-import CoreLocation
-
-// Displays detailed information about a selected place (from Google Places search),
-// including its name, address, rating, phone, types, coordinates, and distance from the user.
 struct PlaceDetailSheet: View {
     let place: GooglePlacesResult
-    let userLocation: CLLocationCoordinate2D?    // User's current location for distance calculation
+    let userLocation: CLLocationCoordinate2D?
     @Environment(\.dismiss) var dismiss
     let onAdd: () -> Void
-
-    // Calculate the straight-line distance from user to place (in meters). Returns nil if unavailable.
-    private var distanceAway: Double? {
-        guard let userLocation = userLocation else { return nil }
-        let userLoc = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
-        let placeLoc = CLLocation(latitude: place.latitude, longitude: place.longitude)
-        return userLoc.distance(from: placeLoc)
-    }
 
     var body: some View {
         NavigationView {
             VStack(spacing: 16) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // Place name/title
                         Text(place.name)
                             .font(.title)
                             .fontWeight(.bold)
-                        
-                        // Place address
                         Text(place.address)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-
-                        // Rating and number of ratings, if available
                         if let rating = place.rating {
                             HStack(spacing: 6) {
                                 Image(systemName: "star.fill")
@@ -247,8 +194,6 @@ struct PlaceDetailSheet: View {
                                 }
                             }
                         }
-
-                        // Phone number, if available
                         if let phone = place.phoneNumber {
                             HStack(spacing: 6) {
                                 Image(systemName: "phone")
@@ -256,8 +201,6 @@ struct PlaceDetailSheet: View {
                             }
                             .font(.subheadline)
                         }
-
-                        // Place types/categories, if any
                         if !place.placeTypes.isEmpty {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Types:")
@@ -267,23 +210,17 @@ struct PlaceDetailSheet: View {
                                     .font(.caption2)
                             }
                         }
-
-                        // Show lat/lng for completeness (optional)
                         Text(String(format: "Lat: %.5f, Lng: %.5f", place.latitude, place.longitude))
                             .font(.caption2)
                             .foregroundColor(.gray)
-
-                        // Distance away from user, if available
-                        if let meters = distanceAway {
-                            Text(String(format: "Distance: %.1f km", meters/1000))
+                        if let userLoc = userLocation {
+                            Text("Distance: \(formattedImperialDistance(from: userLoc, to: place.coordinate))")
                                 .font(.caption)
                                 .foregroundColor(.blue)
                         }
                     }
                     .padding()
                 }
-
-                // "Add" button at bottom
                 Button(action: onAdd) {
                     HStack {
                         Image(systemName: "plus.circle.fill")
@@ -308,9 +245,17 @@ struct PlaceDetailSheet: View {
     }
 }
 
-#Preview {
-    MapSearchView(
-        viewModel: MapSearchViewModel(),
-        onAddPlace: { _, _ in }
-    )
+// ---- HELPER FUNCTION DEFINED LAST ----
+
+// Returns "450 ft" or "2.18 mi" for two coordinates.
+func formattedImperialDistance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> String {
+    let loc1 = CLLocation(latitude: from.latitude, longitude: from.longitude)
+    let loc2 = CLLocation(latitude: to.latitude, longitude: to.longitude)
+    let miles = loc1.distance(from: loc2) / 1609.344
+    if miles < 0.1 {
+        let feet = miles * 5280
+        return String(format: "%.0f ft", feet)
+    } else {
+        return String(format: "%.2f mi", miles)
+    }
 }

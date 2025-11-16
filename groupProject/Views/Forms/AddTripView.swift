@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreLocation
 
+// Modal sheet for creating a new trip, optionally prepopulated with an itinerary.
 struct AddTripView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: TripListViewModel
@@ -13,7 +14,6 @@ struct AddTripView: View {
     @State private var startDate = Date()
     @State private var endDate = Date().addingTimeInterval(86400 * 7)
     @State private var description = ""
-    @State private var budget: Double = 1000
     @State private var itinerary: [ItineraryPlace] = []
 
     init(viewModel: TripListViewModel, prepopulatedItinerary: [ItineraryPlace]? = nil) {
@@ -48,18 +48,10 @@ struct AddTripView: View {
                     DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
                     DatePicker("End Date", selection: $endDate, displayedComponents: .date)
                 }
-                Section("Budget") {
-                    HStack {
-                        Text("$")
-                        TextField("Amount", value: $budget, format: .number)
-                            .keyboardType(.decimalPad)
-                    }
-                }
                 Section("Description") {
                     TextEditor(text: $description)
                         .frame(height: 100)
                 }
-                // ---- Pre-populated Itinerary ----
                 if !itinerary.isEmpty {
                     Section("Pre-populated Itinerary") {
                         ForEach(itinerary) { place in
@@ -84,8 +76,7 @@ struct AddTripView: View {
                             startDate: startDate,
                             endDate: endDate,
                             description: description,
-                            budget: budget,
-                            itinerary: itinerary // <-- Best: use an array here!
+                            itinerary: itinerary
                         )
                         viewModel.addTrip(trip)
                         dismiss()

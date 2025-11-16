@@ -16,12 +16,11 @@ struct ContentView: View {
                 .tabItem {
                     Label("Trips", systemImage: "airplane")
                 }
-            
-            ItineraryView()
+            PlacesView()
                 .tabItem {
-                    Label("Itinerary", systemImage: "checklist")
+                    Label("Places", systemImage: "mappin.circle")
                 }
-            
+        
             NavigationView {
                 MapScreen()
             }

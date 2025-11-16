@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 
+// Data model for Trip objects.
 struct Trip: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
@@ -10,7 +11,6 @@ struct Trip: Identifiable, Codable, Hashable {
     var startDate: Date
     var endDate: Date
     var description: String
-    var budget: Double
     var imageURL: String?
     var itinerary: [ItineraryPlace]
 
@@ -23,7 +23,6 @@ struct Trip: Identifiable, Codable, Hashable {
         startDate: Date,
         endDate: Date,
         description: String = "",
-        budget: Double = 0,
         imageURL: String? = nil,
         itinerary: [ItineraryPlace] = []
     ) {
@@ -35,7 +34,6 @@ struct Trip: Identifiable, Codable, Hashable {
         self.startDate = startDate
         self.endDate = endDate
         self.description = description
-        self.budget = budget
         self.imageURL = imageURL
         self.itinerary = itinerary
     }

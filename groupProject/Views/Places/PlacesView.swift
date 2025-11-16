@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// The Itinerary manager: shows saved places and supports building itineraries/trips from your collection.
-struct ItineraryView: View {
-    @EnvironmentObject var placesViewModel: PlacesViewModel
-    @EnvironmentObject var tripListViewModel: TripListViewModel
+struct PlacesView: View {
+    @EnvironmentObject var placesViewModel: PlacesViewModel      // Holds [ItineraryPlace]
+    @EnvironmentObject var tripListViewModel: TripListViewModel  // For trip creation/add-to-trip logic
+
     @State private var showingAddPlace = false
     @State private var showingCreateTrip = false
-    @State private var selectedPlaces: Set<Place> = []    // Use Place model
+    @State private var selectedPlaces: Set<ItineraryPlace> = []
 
     var body: some View {
         NavigationView {
@@ -14,15 +14,21 @@ struct ItineraryView: View {
                 if placesViewModel.savedPlaces.isEmpty {
                     EmptyStateView(
                         icon: "mappin.slash",
-                        title: "No Places Yet",
-                        message: "Save places from the map to start building trips!"
+                        title: "No Places Saved",
+                        message: "Save places from the map or search to start building trips!"
                     )
                 } else {
-                    placesList                    // Shows all saved places, selectable
+                    placesList
                 }
-                actionBar                        // Shows actions for selected places
+                // Show create trip button if selection is active
+                if !selectedPlaces.isEmpty {
+                    Button(action: { showingCreateTrip = true }) {
+                        Label("Create Trip from Selection", systemImage: "airplane")
+                    }
+                    .padding()
+                }
             }
-            .navigationTitle("Itinerary")
+            .navigationTitle("Places")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingAddPlace = true }) {
@@ -44,7 +50,6 @@ struct ItineraryView: View {
         }
     }
 
-    // MARK: - List of saved places, selection enabled
     private var placesList: some View {
         List(selection: $selectedPlaces) {
             ForEach(placesViewModel.savedPlaces) { place in
@@ -60,11 +65,10 @@ struct ItineraryView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .buttonStyle(.plain)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    // Toggle selection for building itinerary
+                    // Select/deselect for trip creation
                     if selectedPlaces.contains(place) {
                         selectedPlaces.remove(place)
                     } else {
@@ -74,18 +78,5 @@ struct ItineraryView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .environment(\.editMode, .constant(.active)) // Enables multi-select
-    }
-
-    // MARK: - Create trip from selected places
-    private var actionBar: some View {
-        Group {
-            if !selectedPlaces.isEmpty {
-                Button(action: { showingCreateTrip = true }) {
-                    Label("Create Trip from Selection", systemImage: "airplane")
-                }
-                .padding()
-            }
-        }
     }
 }

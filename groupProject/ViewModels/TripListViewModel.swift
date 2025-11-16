@@ -76,6 +76,14 @@ final class TripListViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
+    // Add a saved place to an existing trip's itinerary.
+    func addPlace(_ place: ItineraryPlace, to trip: Trip) {
+        guard let idx = trips.firstIndex(where: { $0.id == trip.id }) else { return }
+        if !trips[idx].itinerary.contains(where: { $0.id == place.id }) {
+            trips[idx].itinerary.append(place)
+            updateTrip(trips[idx])
+        }
+    }
 }
 
 enum TripFilter { case all, upcoming, past }

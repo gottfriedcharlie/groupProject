@@ -16,7 +16,6 @@ struct EditTripView: View {
     @State private var startDate: Date
     @State private var endDate: Date
     @State private var description: String
-    @State private var budget: Double
     
     private let tripId: UUID
     
@@ -28,7 +27,6 @@ struct EditTripView: View {
         _startDate = State(initialValue: trip.startDate)
         _endDate = State(initialValue: trip.endDate)
         _description = State(initialValue: trip.description)
-        _budget = State(initialValue: trip.budget)
     }
     
     var body: some View {
@@ -41,14 +39,6 @@ struct EditTripView: View {
                 Section("Dates") {
                     DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
                     DatePicker("End Date", selection: $endDate, displayedComponents: .date)
-                }
-                
-                Section("Budget") {
-                    HStack {
-                        Text("$")
-                        TextField("Amount", value: $budget, format: .number)
-                            .keyboardType(.decimalPad)
-                    }
                 }
                 
                 Section("Description") {
@@ -74,7 +64,6 @@ struct EditTripView: View {
                             startDate: startDate,
                             endDate: endDate,
                             description: description,
-                            budget: budget
                         )
                         listViewModel.updateTrip(updatedTrip)
                         dismiss()

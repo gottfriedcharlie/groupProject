@@ -1,7 +1,7 @@
 import SwiftUI
 
+/// Main entry point for the Trips tab. Lists all trips, allows filtering, searching, and creating new trips.
 struct TripListView: View {
-    // USE the shared view model from environment instead of creating a new one
     @EnvironmentObject var viewModel: TripListViewModel
     @State private var showingAddTrip = false
 
@@ -20,7 +20,6 @@ struct TripListView: View {
             }
             .navigationTitle("My Trips")
             .toolbar {
-                // "Create New Trip" (plus button) at top right
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingAddTrip = true
@@ -32,7 +31,7 @@ struct TripListView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                        EditButton()
+                    EditButton()
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Menu {
@@ -51,8 +50,6 @@ struct TripListView: View {
                 AddTripView(viewModel: viewModel)
             }
             .onAppear {
-                // Reload trips when view appears
-                print("🔄 TripListView appeared - reloading trips")
                 viewModel.loadTrips()
             }
         }
@@ -70,10 +67,7 @@ struct TripListView: View {
             .onDelete(perform: deleteTrips)
         }
         .listStyle(.insetGrouped)
-        .refreshable {
-            // Pull to refresh
-            viewModel.loadTrips()
-        }
+        .refreshable { viewModel.loadTrips() }
     }
 
     private func deleteTrips(at offsets: IndexSet) {
@@ -82,9 +76,4 @@ struct TripListView: View {
             viewModel.deleteTrip(trip)
         }
     }
-}
-
-#Preview {
-    TripListView()
-        .environmentObject(TripListViewModel())
 }
