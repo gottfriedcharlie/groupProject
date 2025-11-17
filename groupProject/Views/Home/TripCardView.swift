@@ -1,6 +1,10 @@
+// TripCardView.swift
+// groupProject
+// Created by Clare Morriss
+
 import SwiftUI
 
-// Visual summary of each Trip in the list: name, destination, date, etc.
+// TripCardView visually displays a trip's name, destination, dates, duration, and status in a summary card format for lists or previews
 struct TripCardView: View {
     let trip: Trip
 
@@ -16,6 +20,7 @@ struct TripCardView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
+                // this highlights with a label if the trip is in the future
                 if trip.isUpcoming {
                     Text("Upcoming")
                         .font(.caption)
@@ -31,6 +36,7 @@ struct TripCardView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             HStack {
+                // this shows the trip duration in days with calendar icon
                 Label("\(trip.durationInDays) days", systemImage: "calendar")
                     .font(.caption)
                     .foregroundColor(.secondary)

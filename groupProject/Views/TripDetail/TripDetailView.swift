@@ -1,19 +1,19 @@
+// TripDetailView.swift
+// groupProject
+// Created by Clare Morriss
+
 import SwiftUI
 
-// Detailed view for a single Trip: shows trip info and editable itinerary.
+// Prologue: detailed view for a single Trip which shows trip info and an editable itinerary
 struct TripDetailView: View {
-    // Main state object for trip detail logic.
-    @StateObject private var viewModel: TripDetailViewModel
-    // Reference to main trip list view model, for updating trips.
-    @ObservedObject var listViewModel: TripListViewModel
-    // Control Add Place and Edit Trip modal sheets
-    @State private var showingAddPlace = false
-    @State private var showingEditTrip = false
+    @StateObject private var viewModel: TripDetailViewModel     // main variable that references the details of the specific trip
+    @ObservedObject var listViewModel: TripListViewModel        // this is the reference to the main trip list view model, for updating
+    @State private var showingAddPlace = false                  // these state variables allow you to control the modal sheets for
+    @State private var showingEditTrip = false                  //       adding places and edting trips
 
-    // ID of the trip being displayed
     let tripId: UUID
 
-    // Initialize view model for this trip, passing parent
+    // initializer for the view model for this trip, passing parent view model
     init(trip: Trip, listViewModel: TripListViewModel) {
         _viewModel = StateObject(wrappedValue: TripDetailViewModel(trip: trip, parentViewModel: listViewModel))
         self.listViewModel = listViewModel
@@ -22,10 +22,8 @@ struct TripDetailView: View {
 
     var body: some View {
         List {
-            // MARK: - Trip Info Section
             Section("Trip Info") {
                 VStack(alignment: .leading, spacing: 12) {
-                    // Trip Title/Location
                     HStack {
                         Image(systemName: "mappin.and.ellipse")
                             .foregroundColor(.blue)
@@ -38,14 +36,12 @@ struct TripDetailView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
-                    // Date Range
                     HStack {
                         Image(systemName: "calendar")
                             .foregroundColor(.orange)
                         Text(viewModel.trip.formattedDateRange)
                             .font(.subheadline)
                     }
-                    // Optional Description
                     if !viewModel.trip.description.isEmpty {
                         Divider()
                         Text(viewModel.trip.description)
@@ -55,8 +51,7 @@ struct TripDetailView: View {
                 }
                 .padding(.vertical, 8)
             }
-
-            // MARK: - Itinerary Summary & Editing
+            // itinerary summary and editing
             if viewModel.trip.itinerary.isEmpty {
                 Section {
                     Text("No places added yet")
@@ -64,7 +59,6 @@ struct TripDetailView: View {
                         .italic()
                 }
             } else {
-                // High-level summary (number of stops, etc.)
                 Section("Itinerary Summary") {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -85,12 +79,11 @@ struct TripDetailView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                // Editable Itinerary: drag-reorder, delete, add stop
+                // this is the editable itinerary which drag-reorder, delete, and the ability to add a stop
                 Section("Itinerary") {
                     ForEach(Array(viewModel.trip.itinerary.enumerated()), id: \.element.id) { index, place in
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 12) {
-                                // Number badge
                                 Text("\(index + 1)")
                                     .font(.caption)
                                     .fontWeight(.bold)
@@ -98,7 +91,6 @@ struct TripDetailView: View {
                                     .frame(width: 24, height: 24)
                                     .background(Color.blue)
                                     .clipShape(Circle())
-                                // Place details
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(place.name)
                                         .font(.headline)
@@ -119,7 +111,7 @@ struct TripDetailView: View {
                                     }
                                 }
                                 Spacer()
-                                // Remove this stop from itinerary
+                                // also the ability to remove a place from itinerary
                                 Button(action: {
                                     viewModel.deletePlace(place)
                                 }) {
@@ -128,7 +120,7 @@ struct TripDetailView: View {
                                         .font(.title3)
                                 }
                             }
-                            // Distance to next
+                            // distance calculator to the next place
                             if let distanceToNext = viewModel.distanceToNext(from: index) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "arrow.down")
@@ -144,7 +136,7 @@ struct TripDetailView: View {
                         }
                         .padding(.vertical, 8)
                     }
-                    // Enable swipe to delete and drag to reorder
+                    // this enables swipe to delete and drag to reorder
                     .onDelete(perform: viewModel.removePlaces)
                     .onMove(perform: viewModel.movePlaces)
                     // Button to add a new place (shows AddPlaceView)
@@ -158,36 +150,33 @@ struct TripDetailView: View {
                 }
             }
         }
-        // MARK: - Navigation and Toolbars
         .navigationTitle("Trip Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 EditButton()
                 Button(action: { showingEditTrip = true }) {
-                    Image(systemName: "square.and.pencil") // Edit trip metadata
+                    Image(systemName: "square.and.pencil")
                 }
             }
         }
-        // MARK: - Sheet Modals for Adding/Editing
-        .sheet(isPresented: $showingAddPlace) {
+        .sheet(isPresented: $showingAddPlace) {     // this is the portion where the modal sheet is used for adding a place
             AddPlaceView { newPlace in
                 viewModel.addPlace(newPlace)
             }
         }
-        .sheet(isPresented: $showingEditTrip) {
+        .sheet(isPresented: $showingEditTrip) {     // ditto but for editng the trip
             EditTripView(trip: viewModel.trip, listViewModel: listViewModel)
         }
-        // MARK: - Sync State on Appear/Disappear
         .onAppear {
-            // Always refresh local trip state from list when showing
+            // this is how you refresh local trip state from list when showing
             if let latestTrip = listViewModel.trips.first(where: { $0.id == tripId }) {
                 viewModel.trip = latestTrip
                 viewModel.calculateTotalDistance()
             }
         }
         .onDisappear {
-            // Save trip on leaving - ensures changes persistable
+            // save trip on leaving which ensures the changes persist
             let updatedTrip = viewModel.trip
             listViewModel.updateTrip(updatedTrip)
         }

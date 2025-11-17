@@ -1,7 +1,11 @@
+// Trip.swift
+// groupProject
+// Created by Clare Morriss
+
 import Foundation
 import CoreLocation
-
-// data model for Trip objects
+// 
+// Prologue: data model for Trip objects
 struct Trip: Identifiable, Codable, Hashable {
     let id: UUID                        // unique trip identifier, system-generated if not provided
     var name: String

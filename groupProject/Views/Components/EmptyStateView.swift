@@ -1,5 +1,10 @@
+// EmptyStateView.swift
+// groupProject
+// Created by Clare Morriss
+
 import SwiftUI
-// reusable view for displaying an informative message and icon when a list or screen has no data to show ("empty state")
+
+// Prologue: reusable view for displaying an informative message and icon when a list or screen has no data to show ("empty state")
 
 struct EmptyStateView: View {
     let icon: String        // visual displayed

@@ -1,6 +1,10 @@
+// TripListView.swift
+// groupProject
+// Created by Clare Morriss
+
 import SwiftUI
 
-/// Main entry point for the Trips tab. Lists all trips, allows filtering, searching, and creating new trips.
+// Prologue: this is the main view for the Trips tab which lists all trips, includes filtering, searching, and creating new trips
 struct TripListView: View {
     @EnvironmentObject var viewModel: TripListViewModel
     @State private var showingAddTrip = false
@@ -14,12 +18,13 @@ struct TripListView: View {
                         title: "No Trips Yet",
                         message: "Start planning your next adventure!"
                     )
-                } else {
+                } else {    // if there are trips planned just display them instead of the message above
                     tripsList
                 }
             }
             .navigationTitle("My Trips")
             .toolbar {
+                // button for creating new trips
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingAddTrip = true
@@ -30,9 +35,11 @@ struct TripListView: View {
                         }
                     }
                 }
+                // this allows for native SwiftUI list editing mode for deletion
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()
                 }
+                // this filtering menu lets the user narrow trips by status (all/upcoming/past)
                 ToolbarItem(placement: .navigationBarLeading) {
                     Menu {
                         Picker("Filter", selection: $viewModel.filterOption) {
@@ -45,6 +52,7 @@ struct TripListView: View {
                     }
                 }
             }
+            // this just checks if the trip is being searched for & if true, is displayed
             .searchable(text: $viewModel.searchText, prompt: "Search trips")
             .sheet(isPresented: $showingAddTrip) {
                 AddTripView(viewModel: viewModel)
@@ -55,6 +63,7 @@ struct TripListView: View {
         }
     }
 
+    // this is the list of trip cards with navigation and swipe-to-delete support, which is also scrollable
     private var tripsList: some View {
         List {
             ForEach(viewModel.filteredTrips) { trip in
@@ -70,6 +79,7 @@ struct TripListView: View {
         .refreshable { viewModel.loadTrips() }
     }
 
+    // this removes the selected trips from the view model and persists changes if they are deleted
     private func deleteTrips(at offsets: IndexSet) {
         let tripsToDelete = offsets.map { viewModel.filteredTrips[$0] }
         for trip in tripsToDelete {

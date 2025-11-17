@@ -1,7 +1,11 @@
+// TripListViewModel.swift
+// groupProject
+// Created by Clare Morriss
+
 import Foundation
 import Combine
 
-// main view model for managing the list of trips and all trip-level logic
+// Prologue: main view model for managing the list of trips and all trip-level logic
 @MainActor
 final class TripListViewModel: ObservableObject {
     @Published var trips: [Trip] = []

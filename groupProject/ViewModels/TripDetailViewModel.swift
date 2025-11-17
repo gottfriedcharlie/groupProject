@@ -1,7 +1,11 @@
+// TripDetailViewModel.swift
+// groupProject
+// Created by Clare Morriss
+
 import Foundation
 import CoreLocation
 
-// view model for trip detail which handles most  logic and live updates for each trip's data
+// Prologue: view model for trip detail which handles most  logic and live updates for each trip's data
 @MainActor
 final class TripDetailViewModel: ObservableObject {
     @Published var trip: Trip

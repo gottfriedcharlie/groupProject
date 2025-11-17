@@ -1,7 +1,13 @@
+// AddTripView.swift
+// groupProject
+// Created by Clare Morriss
+
 import SwiftUI
 import CoreLocation
 
-// modal sheet for creating a new trip, with the optional for a prepopulated itinerary
+// Prologue: modal sheet for creating a new trip, with the optional for a prepopulated itinerary
+// Swift documentation and AI was used to help with our understanding of modal forms and their structure & set up
+
 struct AddTripView: View {
     @Environment(\.dismiss) var dismiss                   // dismissal control for the sheet/modal
     @ObservedObject var viewModel: TripListViewModel      // can add the new trip to TripListViewModel
