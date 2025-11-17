@@ -16,6 +16,8 @@ struct AddTripView: View {
     @State private var endDate = Date().addingTimeInterval(86400 * 7)
     @State private var description = ""
     @State private var itinerary: [ItineraryPlace] = []
+    
+    @StateObject private var locationManager = LocationManagerViewModel()
 
     init(viewModel: TripListViewModel, prepopulatedItinerary: [ItineraryPlace]? = nil, onTripCreated: (() -> Void)? = nil) {
         self.viewModel = viewModel
@@ -31,21 +33,37 @@ struct AddTripView: View {
             Form {
                 Section("Trip Details") {
                     TextField("Trip Name", text: $name)
-                    Button(action: { showingDestinationSearch = true }) {
-                        HStack {
-                            Text("Destination").foregroundColor(.primary)
-                            Spacer()
-                            if destination.isEmpty {
-                                Text("Select location").foregroundColor(.gray)
-                            } else {
-                                Text(destination).foregroundColor(.secondary)
+                    
+                    Section {
+                        Button(action: { showingDestinationSearch = true }) {
+                            HStack {
+                                Text("Destination").foregroundColor(.primary)
+                                Spacer()
+                                if destination.isEmpty {
+                                    Text("Select location").foregroundColor(.gray)
+                                } else {
+                                    Text(destination).foregroundColor(.secondary)
+                                }
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                                    .font(.caption)
                             }
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.gray)
-                                .font(.caption)
                         }
+                        
+                        // Button to use current location
+                        Button(action: useCurrentLocation) {
+                            HStack {
+                                Image(systemName: "location.fill")
+                                    .foregroundColor(.blue)
+                                Text("Use Current Location")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    } header: {
+                        Text("Choose Destination")
                     }
                 }
+                
                 Section("Dates") {
                     DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
                     DatePicker("End Date", selection: $endDate, displayedComponents: .date)
@@ -100,6 +118,62 @@ struct AddTripView: View {
                     }
                 )
             }
+            .onAppear {
+                locationManager.requestLocation()
+            }
         }
+    }
+    
+    // Use current location as destination
+    private func useCurrentLocation() {
+        guard let userLoc = locationManager.userLocation else {
+            return
+        }
+        
+        // Get the city/location name from coordinates using reverse geocoding
+        let geocoder = CLGeocoder()
+        geocoder.reverseGeocodeLocation(CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)) { placemarks, error in
+            if let placemark = placemarks?.first {
+                // Use city name, or locality, or area if available
+                destination = placemark.locality ?? placemark.administrativeArea ?? "Current Location"
+                destinationCoordinate = userLoc
+            } else {
+                // Fallback if geocoding fails
+                destination = "Current Location"
+                destinationCoordinate = userLoc
+            }
+        }
+    }
+}
+
+// FIXED: Proper ViewModel with nonisolated delegate methods
+@MainActor
+class LocationManagerViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
+    @Published var userLocation: CLLocationCoordinate2D?
+    private let manager = CLLocationManager()
+    
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+    }
+    
+    func requestLocation() {
+        manager.requestWhenInUseAuthorization()
+        manager.startUpdatingLocation()
+    }
+    
+    // FIXED: Mark delegate methods as nonisolated
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        
+        Task { @MainActor in
+            self.userLocation = location.coordinate
+            manager.stopUpdatingLocation()
+        }
+    }
+    
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("Location error: \(error.localizedDescription)")
     }
 }

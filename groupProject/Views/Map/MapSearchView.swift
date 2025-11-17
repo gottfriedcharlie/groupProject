@@ -1,5 +1,4 @@
 import SwiftUI
-import MapKit
 import CoreLocation
 
 struct MapSearchView: View {
@@ -11,27 +10,53 @@ struct MapSearchView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                // Search bar
                 SearchBar(text: $viewModel.searchText)
                     .padding()
-                    .onChange(of: viewModel.searchText) { oldValue, newQuery in
-                        viewModel.searchNearby(query: newQuery)
+                    .onChange(of: viewModel.searchText) { oldValue, newValue in
+                        if newValue.count >= 3 {
+                            viewModel.searchNearby(query: newValue)
+                        }
                     }
+                
+                // Error message
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                         .foregroundColor(.red)
                         .font(.subheadline)
                         .padding()
                 }
+                
+                // Loading state
                 if viewModel.isLoading {
-                    LoadingView()
-                        .frame(maxHeight: .infinity)
-                } else if viewModel.searchResults.isEmpty && !viewModel.searchText.isEmpty {
-                    SearchStatusView(
-                        icon: "magnifyingglass",
-                        title: "No Results Found",
-                        subtitle: "Try searching for different keywords"
-                    )
-                } else if !viewModel.searchResults.isEmpty {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        
+                        Text("Searching...")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxHeight: .infinity)
+                }
+                // No results state
+                else if viewModel.searchResults.isEmpty && !viewModel.searchText.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 50))
+                            .foregroundColor(.gray)
+                        
+                        Text("No Results Found")
+                            .font(.headline)
+                        
+                        Text("Try searching for different keywords")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxHeight: .infinity)
+                }
+                // Results list
+                else if !viewModel.searchResults.isEmpty {
                     List(viewModel.searchResults) { result in
                         SearchResultRow(
                             result: result,
@@ -40,12 +65,22 @@ struct MapSearchView: View {
                         )
                     }
                     .listStyle(.plain)
-                } else {
-                    SearchStatusView(
-                        icon: "map",
-                        title: "Search for Places",
-                        subtitle: "Search for restaurants, museums, parks, and more near you"
-                    )
+                }
+                // Empty state
+                else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "map")
+                            .font(.system(size: 50))
+                            .foregroundColor(.gray)
+                        
+                        Text("Search for Places")
+                            .font(.headline)
+                        
+                        Text("Search for restaurants, museums, parks, and more")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxHeight: .infinity)
                 }
             }
             .navigationTitle("Find Places")
@@ -71,28 +106,7 @@ struct MapSearchView: View {
     }
 }
 
-struct SearchStatusView: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 48))
-                .foregroundColor(.gray)
-            Text(title)
-                .font(.headline)
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxHeight: .infinity)
-        .padding()
-    }
-}
-
+// Search bar component
 struct SearchBar: View {
     @Binding var text: String
 
@@ -100,8 +114,10 @@ struct SearchBar: View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.gray)
-            TextField("Search ice cream, museums, restaurants...", text: $text)
+            
+            TextField("Search places...", text: $text)
                 .textInputAutocapitalization(.none)
+            
             if !text.isEmpty {
                 Button(action: { text = "" }) {
                     Image(systemName: "xmark.circle.fill")
@@ -115,6 +131,7 @@ struct SearchBar: View {
     }
 }
 
+// Search result row
 struct SearchResultRow: View {
     let result: GooglePlacesResult
     let userLocation: CLLocationCoordinate2D?
@@ -158,104 +175,99 @@ struct SearchResultRow: View {
                 Image(systemName: "chevron.right")
                     .foregroundColor(.gray)
             }
-            .contentShape(Rectangle())
             .padding(.vertical, 8)
         }
     }
 }
 
+// Place detail sheet
 struct PlaceDetailSheet: View {
     let place: GooglePlacesResult
     let userLocation: CLLocationCoordinate2D?
-    @Environment(\.dismiss) var dismiss
     let onAdd: () -> Void
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 16) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(place.name)
-                            .font(.title)
-                            .fontWeight(.bold)
-                        Text(place.address)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        if let rating = place.rating {
-                            HStack(spacing: 6) {
-                                Image(systemName: "star.fill")
-                                    .foregroundColor(.orange)
-                                Text(String(format: "%.1f", rating))
-                                    .font(.subheadline)
-                                if let count = place.userRatingsTotal {
-                                    Text("(\(count) ratings)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        if let phone = place.phoneNumber {
-                            HStack(spacing: 6) {
-                                Image(systemName: "phone")
-                                Text(phone)
-                            }
-                            .font(.subheadline)
-                        }
-                        if !place.placeTypes.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Types:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(place.placeTypes.joined(separator: ", "))
-                                    .font(.caption2)
-                            }
-                        }
-                        Text(String(format: "Lat: %.5f, Lng: %.5f", place.latitude, place.longitude))
-                            .font(.caption2)
-                            .foregroundColor(.gray)
-                        if let userLoc = userLocation {
-                            Text("Distance: \(formattedImperialDistance(from: userLoc, to: place.coordinate))")
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    .padding()
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(place.name)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text(place.address)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
-                Button(action: onAdd) {
-                    HStack {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Add")
+                Spacer()
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding()
+            
+            if let rating = place.rating {
+                HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.orange)
+                        Text(String(format: "%.1f", rating))
+                            .fontWeight(.semibold)
+                        if let total = place.userRatingsTotal {
+                            Text("(\(total) reviews)")
+                                .foregroundColor(.secondary)
+                        }
                     }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(12)
+                    Spacer()
+                }
+                .padding(.horizontal)
+            }
+            
+            if let phoneNumber = place.phoneNumber {
+                HStack {
+                    Image(systemName: "phone.fill")
+                        .foregroundColor(.blue)
+                    Text(phoneNumber)
+                        .font(.subheadline)
+                    Spacer()
                 }
                 .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                .padding(.horizontal)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") { dismiss() }
+            
+            Spacer()
+            
+            Button(action: onAdd) {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Add to Trip")
                 }
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .cornerRadius(12)
             }
+            .padding()
         }
     }
 }
 
-// ---- HELPER FUNCTION DEFINED LAST ----
-
-// Returns "450 ft" or "2.18 mi" for two coordinates.
+// Helper function to format distance
 func formattedImperialDistance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> String {
     let loc1 = CLLocation(latitude: from.latitude, longitude: from.longitude)
     let loc2 = CLLocation(latitude: to.latitude, longitude: to.longitude)
-    let miles = loc1.distance(from: loc2) / 1609.344
-    if miles < 0.1 {
-        let feet = miles * 5280
-        return String(format: "%.0f ft", feet)
-    } else {
-        return String(format: "%.2f mi", miles)
-    }
+    let distanceInMeters = loc1.distance(from: loc2)
+    let distanceInMiles = distanceInMeters / 1609.344
+    return String(format: "%.1f mi", distanceInMiles)
+}
+
+#Preview {
+    MapSearchView(
+        viewModel: MapSearchViewModel(),
+        onAddPlace: { _, _ in }
+    )
 }
