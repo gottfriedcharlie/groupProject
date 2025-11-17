@@ -9,6 +9,7 @@ struct ContentView: View {
     // Get the shared view models from environment
     @EnvironmentObject var tripListViewModel: TripListViewModel
     @EnvironmentObject var itineraryViewModel: ItineraryViewModel
+    @EnvironmentObject var placesViewModel: PlacesViewModel
     
     var body: some View {
         TabView {
@@ -40,4 +41,5 @@ struct ContentView: View {
     ContentView()
         .environmentObject(TripListViewModel())
         .environmentObject(ItineraryViewModel())
+        .environmentObject(PlacesViewModel())
 }

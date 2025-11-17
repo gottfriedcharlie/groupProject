@@ -6,7 +6,7 @@ struct ItineraryView: View {
     @EnvironmentObject var tripListViewModel: TripListViewModel
     @State private var showingAddPlace = false
     @State private var showingCreateTrip = false
-    @State private var selectedPlaces: Set<Place> = []    // Use Place model
+    @State private var selectedPlaces: Set<ItineraryPlace> = []
 
     var body: some View {
         NavigationView {
@@ -18,9 +18,9 @@ struct ItineraryView: View {
                         message: "Save places from the map to start building trips!"
                     )
                 } else {
-                    placesList                    // Shows all saved places, selectable
+                    placesList
                 }
-                actionBar                        // Shows actions for selected places
+                actionBar
             }
             .navigationTitle("Itinerary")
             .toolbar {

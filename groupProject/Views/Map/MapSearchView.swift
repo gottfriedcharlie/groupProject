@@ -13,7 +13,7 @@ struct MapSearchView: View {
             VStack(spacing: 0) {
                 SearchBar(text: $viewModel.searchText)
                     .padding()
-                    .onChange(of: viewModel.searchText) { newQuery in
+                    .onChange(of: viewModel.searchText) { oldValue, newQuery in
                         viewModel.searchNearby(query: newQuery)
                     }
                 if let errorMessage = viewModel.errorMessage {

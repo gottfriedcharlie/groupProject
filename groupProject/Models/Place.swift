@@ -2,7 +2,7 @@ import Foundation
 import CoreLocation
 
 struct Place: Identifiable, Codable, Hashable {
-    let id: String                   // Google Place ID, or UUID.string for custom entries
+    let id: String
     var name: String
     var address: String
     var latitude: Double
@@ -11,16 +11,16 @@ struct Place: Identifiable, Codable, Hashable {
     var phoneNumber: String?
     var rating: Double?
     var userRatingsTotal: Int?
-    var notes: String?               // Optional user field
-    var tripId: String              // Store trip association if needed
+    var notes: String?
+    var tripId: String
 
     init(
-        id: String,
+        id: String = UUID().uuidString,
         name: String,
-        address: String,
+        address: String = "",
         latitude: Double,
         longitude: Double,
-        category: String? = nil,
+        category: PlaceCategory = .other,
         phoneNumber: String? = nil,
         rating: Double? = nil,
         userRatingsTotal: Int? = nil,
@@ -32,12 +32,12 @@ struct Place: Identifiable, Codable, Hashable {
         self.address = address
         self.latitude = latitude
         self.longitude = longitude
-        PlaceCategory(rawValue: (self.category = category)!) ?? <#default value#>
+        self.category = category
         self.phoneNumber = phoneNumber
         self.rating = rating
         self.userRatingsTotal = userRatingsTotal
         self.notes = notes
-        self.tripId = tripId
+        self.tripId = tripId ?? ""
     }
 
     init(from google: GooglePlacesResult) {
@@ -46,12 +46,16 @@ struct Place: Identifiable, Codable, Hashable {
         self.address = google.address
         self.latitude = google.latitude
         self.longitude = google.longitude
-        PlaceCategory(rawValue: (self.category = google.placeTypes.first)!) ?? <#default value#>
+        
+        // Map Google place types to PlaceCategory
+        let categoryString = google.placeTypes.first?.lowercased() ?? "other"
+        self.category = PlaceCategory(rawValue: categoryString) ?? .other
+        
         self.phoneNumber = google.phoneNumber
         self.rating = google.rating
         self.userRatingsTotal = google.userRatingsTotal
         self.notes = nil
-        self.tripId = nil
+        self.tripId = ""
     }
 
     var coordinate: CLLocationCoordinate2D {

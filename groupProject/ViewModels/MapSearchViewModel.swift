@@ -26,7 +26,7 @@ struct GooglePlacesResult: Identifiable, Hashable {
 
 // MARK: - Main ViewModel (with LocationDelegate at class level)
 @MainActor
-final class MapSearchViewModel: NSObject, ObservableObject {
+final class MapSearchViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Published Properties (trigger UI updates)
     @Published var searchText = ""                      // Live search string
     @Published var searchResults: [GooglePlacesResult] = [] // Results to display
@@ -164,6 +164,28 @@ final class MapSearchViewModel: NSObject, ObservableObject {
         }
         return .other
     }
+    
+    // MARK: - CLLocationManagerDelegate Methods
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        Task { @MainActor in
+            self.userLocation = location.coordinate
+            
+            // Initialize search center to user location if not already set
+            if self.currentSearchCenter == nil {
+                self.currentSearchCenter = location.coordinate
+            }
+            
+            print("📍 User location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
+        }
+    }
+    
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in
+            self.errorMessage = "Location error: \(error.localizedDescription)"
+            print("❌ Location error: \(error)")
+        }
+    }
 }
 
 // MARK: - Google Places API Response Models
@@ -212,27 +234,4 @@ struct DisplayName: Codable {
 struct LatLng: Codable {
     let latitude: Double
     let longitude: Double
-}
-
-// MARK: - CLLocationManagerDelegate Implementation
-@MainActor
-extension MapSearchViewModel: CLLocationManagerDelegate {
-    // Updates userLocation when a new location is available.
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
-        self.userLocation = location.coordinate
-        
-        // Initialize search center to user location if not already set
-        if currentSearchCenter == nil {
-            currentSearchCenter = location.coordinate
-        }
-        
-        print("📍 User location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
-    }
-    
-    // Handles location failures and updates error message.
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        errorMessage = "Location error: \(error.localizedDescription)"
-        print("❌ Location error: \(error)")
-    }
 }

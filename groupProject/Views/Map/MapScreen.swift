@@ -78,20 +78,21 @@ struct MapScreen: View {
                     // Add to itinerary
                     itineraryViewModel.addPlace(result)
                     
-                    // Also save as Place to trip if desired
+                    // Also save as ItineraryPlace to trip if desired
                     if let trip = trips.first(where: { $0.isUpcoming }) ?? trips.first {
-                        let place = Place(
-                            name: result.name,
-                            category: category,
-                            latitude: result.latitude,
-                            longitude: result.longitude,
-                            notes: result.phoneNumber ?? "",
-                            tripId: trip.id
-                        )
+                        let itineraryPlace = ItineraryPlace(from: result)
                         
-                        var places = dataManager.loadPlaces(for: trip.id)
-                        places.append(place)
-                        dataManager.savePlaces(places)
+                        // Add place to trip's itinerary
+                        var updatedTrip = trip
+                        if !updatedTrip.itinerary.contains(where: { $0.id == itineraryPlace.id }) {
+                            updatedTrip.itinerary.append(itineraryPlace)
+                            // Update the trip in the data manager
+                            var allTrips = dataManager.loadTrips()
+                            if let index = allTrips.firstIndex(where: { $0.id == trip.id }) {
+                                allTrips[index] = updatedTrip
+                                dataManager.saveTrips(allTrips)
+                            }
+                        }
                         
                         print("✅ Place added to itinerary: \(result.name)")
                     }

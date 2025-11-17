@@ -274,7 +274,7 @@ struct ItineraryBuilderView: View {
             itineraryViewModel.setSelectedTrip(trip)
             searchViewModel.updateSearchCenter(to: trip.destinationCoordinate ?? CLLocationCoordinate2D(latitude: 42.259, longitude: -71.808))
         }
-        .onChange(of: searchText) { _, newValue in
+        .onChange(of: searchText) { oldValue, newValue in
             if newValue.count >= 2 {
                 searchViewModel.searchNearby(query: newValue)
             }
