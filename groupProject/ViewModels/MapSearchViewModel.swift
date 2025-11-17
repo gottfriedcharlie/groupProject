@@ -2,6 +2,7 @@
 //  MapSearchViewModel.swift
 //  groupProject
 //  Created by Charlie Gottfried
+//The bridge between user input and Google Places. Takes search queries, sends them to Google with location context, receives back place data with ratings and phone numbers, and delivers the results.
 
 
 import Foundation

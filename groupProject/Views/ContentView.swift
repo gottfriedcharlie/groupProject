@@ -1,7 +1,8 @@
 //
 //  ContentView.swift
+//Charlie Gottfried
 //  groupProject
-//
+//The app's home base. Three tabs at the bottom: My Trips, saved Places, and the Map. Switch between them to navigate the whole app.
 
 import SwiftUI
 

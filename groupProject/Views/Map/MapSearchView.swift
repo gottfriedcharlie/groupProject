@@ -2,6 +2,7 @@
 //  MapSearchView.swift
 //  groupProject
 //  Created by Charlie Gottfried
+//The search interface. Type what you're looking for (restaurant, museum, coffee shop), see results with ratings and addresses. Tap one to view full details before saving.
 
 import SwiftUI
 import CoreLocation

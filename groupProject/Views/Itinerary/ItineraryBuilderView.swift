@@ -2,7 +2,7 @@
 //  ItineraryBuilderView.swift
 //  groupProject
 //  Created by Charlie Gottfried
-
+//The planning workspace. Map on top showing the trip destination and numbered stops in order. Search bar below to find and add new places. Collapsible sidebar on the left displays the full ordered list—grab and drag to rearrange the route.
 import SwiftUI
 import MapKit
 

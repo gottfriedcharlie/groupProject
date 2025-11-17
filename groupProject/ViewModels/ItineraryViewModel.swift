@@ -2,6 +2,7 @@
 //  ItineraryViewModel.swift
 //  groupProject
 //  Created by Charlie Gottfried
+//The itinerary tracker during trip building. Maintains place order, handles drag-and-drop reordering, keeps track of which trip is being worked on, and calculates the next search location based on the last added place.
 
 
 import Foundation

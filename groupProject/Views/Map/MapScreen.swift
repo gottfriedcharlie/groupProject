@@ -2,6 +2,7 @@
 //  MapScreen.swift
 //  groupProject
 //  Created by Charlie Gottfried
+//The map view where everything connects. Pick a trip, see it pinned with all the stops numbered in order. Search for new places and add them straight to the selected trip.
 import SwiftUI
 import MapKit
 
