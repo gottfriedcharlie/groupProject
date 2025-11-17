@@ -2,7 +2,7 @@
 //  DataManager.swift
 //  groupProject
 //
-//   
+//Handles saving and loading all the app's data to the device. Stores trips and places locally using UserDefaults so everything persists even after closing the app.
 //
 
 import Foundation
