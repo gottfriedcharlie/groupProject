@@ -1,7 +1,8 @@
 //
 //  MapSearchViewModel.swift
 //  groupProject
-//
+//  Created by Charlie Gottfried
+
 
 import Foundation
 import MapKit
@@ -36,7 +37,7 @@ final class MapSearchViewModel: NSObject, ObservableObject, CLLocationManagerDel
     
     private var locationManager: CLLocationManager
     private let dataManager = DataManager.shared
-    private let apiKey = "AIzaSyAI4XzQoWrI6enQ6qVFRFqP5rDckKuX9c8"
+    private let apiKey = "AIzaSyAI4XzQoWrI6enQ6qVFRFqP5rDckKuX9c8"  //google places api key
     
     // MARK: - NEW: Track the current search center (for location-aware searches)
     /// The location around which to search. Updates as user adds places to itinerary.
@@ -58,6 +59,7 @@ final class MapSearchViewModel: NSObject, ObservableObject, CLLocationManagerDel
     
     // MARK: - NEW: Update search center when user adds a place
     /// Call this after user adds a place to the itinerary to update search location
+    // this implements the location-aware search from xu paper
     func updateSearchCenter(to coordinate: CLLocationCoordinate2D) {
         self.currentSearchCenter = coordinate
         print("📍 Search center updated to: \(coordinate.latitude), \(coordinate.longitude)")
@@ -66,7 +68,7 @@ final class MapSearchViewModel: NSObject, ObservableObject, CLLocationManagerDel
     // MARK: - Google Places Search
     /// Triggered when user types (called in .onChange in your view)
     func searchNearby(query: String) {
-        // Use current search center, fall back to user location, then default
+        // Use current search center, fall back to user location, then holy cross default
         let searchLocation = currentSearchCenter ?? userLocation ?? CLLocationCoordinate2D(latitude: 42.23943764672886, longitude: -71.80796616765598)
         
         guard !query.isEmpty else { return }
@@ -74,13 +76,14 @@ final class MapSearchViewModel: NSObject, ObservableObject, CLLocationManagerDel
         isLoading = true
         errorMessage = nil
         
-        // Ensure API key is set
+        // check api key is configured
         if apiKey == "YOUR_GOOGLE_API_KEY_HERE" {
             errorMessage = "API key not configured. Please add your Google Places API key."
             isLoading = false
             return
         }
         
+        //google places api v1 endpoint
         let urlString = "https://places.googleapis.com/v1/places:searchText"
         var request = URLRequest(url: URL(string: urlString)!)
         request.httpMethod = "POST"
@@ -88,6 +91,7 @@ final class MapSearchViewModel: NSObject, ObservableObject, CLLocationManagerDel
         request.setValue(apiKey, forHTTPHeaderField: "X-Goog-Api-Key")
         request.setValue("places.name,places.displayName,places.formattedAddress,places.location,places.types,places.internationalPhoneNumber,places.rating,places.userRatingCount", forHTTPHeaderField: "X-Goog-FieldMask")
         
+        // location bias - search within 5km radius
         let body: [String: Any] = [
             "textQuery": query,
             "locationBias": [
@@ -104,6 +108,7 @@ final class MapSearchViewModel: NSObject, ObservableObject, CLLocationManagerDel
         
         print("🔍 Searching for: \(query) around (\(searchLocation.latitude), \(searchLocation.longitude))")
         
+        // ai helped debug this api call and response handling
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 self?.isLoading = false
@@ -147,10 +152,12 @@ final class MapSearchViewModel: NSObject, ObservableObject, CLLocationManagerDel
         }.resume()
     }
     
-    // Determines place category for result heuristics in UI/app logic.
+    // categorizes place for ui display - helps show right icon
     func categorizePlace(_ result: GooglePlacesResult) -> PlaceCategory {
         let types = result.placeTypes.map { $0.lowercased() }
         let name = result.name.lowercased()
+        
+        //check types and name to guess category
         if types.contains("restaurant") || name.contains("restaurant") || name.contains("cafe") {
             return .restaurant
         } else if types.contains("lodging") || types.contains("hotel") {
@@ -166,6 +173,7 @@ final class MapSearchViewModel: NSObject, ObservableObject, CLLocationManagerDel
     }
     
     // MARK: - CLLocationManagerDelegate Methods
+    // these need to be nonisolated for the delegate to work properly
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         Task { @MainActor in
@@ -214,6 +222,7 @@ struct NewPlace: Codable {
         case userRatingCount
     }
     
+    //custom decoder to handle optional fields
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.name = try container.decode(String.self, forKey: .name)

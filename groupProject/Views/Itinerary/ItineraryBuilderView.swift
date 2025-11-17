@@ -1,3 +1,8 @@
+//
+//  ItineraryBuilderView.swift
+//  groupProject
+//  Created by Charlie Gottfried
+
 import SwiftUI
 import MapKit
 
@@ -12,10 +17,11 @@ struct ItineraryBuilderView: View {
     @State private var cameraPosition: MapCameraPosition
     @State private var selectedPin: GooglePlacesResult?
     @State private var showDetailSheet = false
-    @State private var showItinerary = false
+    @State private var showItinerary = false  // sidebar toggle
     
     init(trip: Trip) {
         self.trip = trip
+        // start map at trip destination or holy cross if no coords
         let initialCoord = trip.destinationCoordinate ?? CLLocationCoordinate2D(latitude: 42.259, longitude: -71.808)
         let fallbackRegion = MKCoordinateRegion(
             center: initialCoord,
@@ -27,18 +33,18 @@ struct ItineraryBuilderView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                // TOP: Map (2/3 of screen)
+                // TOP: Map takes 2/3 of screen height
                 ZStack(alignment: .topTrailing) {
                     Map(position: $cameraPosition) {
                         UserAnnotation()
                         
-                        // Trip destination marker
+                        // Trip destination marker in green
                         if let coord = trip.destinationCoordinate {
                             Marker("📍 \(trip.destination)", coordinate: coord)
                                 .tint(.green)
                         }
                         
-                        // Itinerary places with numbers
+                        // Itinerary places with numbers - helps visualize the route
                         ForEach(Array(itineraryViewModel.currentOrderedPlaces.enumerated()), id: \.element.id) { index, place in
                             Annotation("\(index + 1). \(place.name)", coordinate: place.coordinate) {
                                 VStack(spacing: 4) {
@@ -56,7 +62,7 @@ struct ItineraryBuilderView: View {
                             }
                         }
                         
-                        // Search result markers
+                        // Search result markers - orange and tappable
                         ForEach(searchViewModel.searchResults) { result in
                             Annotation(result.name, coordinate: result.coordinate) {
                                 Button(action: {
@@ -74,7 +80,7 @@ struct ItineraryBuilderView: View {
                         MapUserLocationButton()
                     }
                     
-                    // Control buttons
+                    // Control buttons floating on map
                     VStack(spacing: 12) {
                         Button(action: { showItinerary.toggle() }) {
                             Image(systemName: "list.dash")
@@ -88,7 +94,8 @@ struct ItineraryBuilderView: View {
                     .padding(16)
                 }
                 
-                // BOTTOM: Search section (1/3 of screen)
+                // BOTTOM: Search section takes 1/3 of screen
+                // this layout is based on the xu paper about mobile trip planning interfaces
                 VStack(spacing: 8) {
                     HStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
@@ -98,6 +105,7 @@ struct ItineraryBuilderView: View {
                             .textInputAutocapitalization(.none)
                             .font(.callout)
                         
+                        //clear button
                         if !searchText.isEmpty {
                             Button(action: { searchText = "" }) {
                                 Image(systemName: "xmark.circle.fill")
@@ -111,7 +119,7 @@ struct ItineraryBuilderView: View {
                     .padding(.horizontal, 12)
                     .padding(.top, 12)
                     
-                    // Search results
+                    // Search results list
                     if searchViewModel.isLoading {
                         VStack {
                             ProgressView()
@@ -135,6 +143,7 @@ struct ItineraryBuilderView: View {
                                         .foregroundColor(.secondary)
                                         .lineLimit(1)
                                     
+                                    //compact rating display
                                     if let rating = result.rating {
                                         HStack(spacing: 4) {
                                             Image(systemName: "star.fill")
@@ -166,7 +175,8 @@ struct ItineraryBuilderView: View {
                 )
             }
             
-            // LEFT SIDEBAR: Collapsible Itinerary
+            // LEFT SIDEBAR: Collapsible Itinerary panel
+            // ai helped with the transition animation here
             if showItinerary {
                 HStack(spacing: 0) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -185,6 +195,7 @@ struct ItineraryBuilderView: View {
                             }
                         }
                         
+                        //empty state
                         if itineraryViewModel.currentOrderedPlaces.isEmpty {
                             Text("Add places to start")
                                 .font(.caption)
@@ -195,6 +206,7 @@ struct ItineraryBuilderView: View {
                                 VStack(alignment: .leading, spacing: 8) {
                                     ForEach(Array(itineraryViewModel.currentOrderedPlaces.enumerated()), id: \.element.id) { index, place in
                                         HStack(spacing: 8) {
+                                            // number badge
                                             Text("\(index + 1)")
                                                 .font(.caption)
                                                 .fontWeight(.bold)
@@ -224,6 +236,7 @@ struct ItineraryBuilderView: View {
                                             
                                             Spacer()
                                             
+                                            //delete button for each place
                                             Button(action: {
                                                 itineraryViewModel.removePlace(place)
                                             }) {
@@ -266,15 +279,17 @@ struct ItineraryBuilderView: View {
             }
         }
         .onAppear {
-            // Loading the existing itinerary if there is one
+            // Loading existing itinerary if there is one
             if !trip.itinerary.isEmpty {
                 itineraryViewModel.currentOrderedPlaces = trip.itinerary
                 itineraryViewModel.itineraryPlaces = trip.itinerary
             }
             itineraryViewModel.setSelectedTrip(trip)
+            //update search center to trip destination for location-aware search
             searchViewModel.updateSearchCenter(to: trip.destinationCoordinate ?? CLLocationCoordinate2D(latitude: 42.259, longitude: -71.808))
         }
         .onChange(of: searchText) { oldValue, newValue in
+            // trigger search after 2 characters
             if newValue.count >= 2 {
                 searchViewModel.searchNearby(query: newValue)
             }
@@ -286,7 +301,7 @@ struct ItineraryBuilderView: View {
                 onAdd: {
                     itineraryViewModel.addPlace(result)
                     selectedPin = nil
-                    searchText = ""
+                    searchText = ""  //clear search after adding
                 }
             )
             .presentationDetents([.medium, .large])
@@ -304,11 +319,11 @@ struct ItineraryBuilderView: View {
         // Clear the itinerary builder for next use
         itineraryViewModel.clearItinerary()
         
-        // Dismiss the view
+        // Go back to trip detail
         dismiss()
     }
     
-    // MARK: - Detail Sheet
+    // MARK: - Detail Sheet for places in builder
     struct ItineraryPlaceDetailSheet: View {
         let place: GooglePlacesResult
         let userLocation: CLLocationCoordinate2D?
@@ -317,6 +332,7 @@ struct ItineraryBuilderView: View {
         @Environment(\.dismiss) var dismiss
         @State private var isAdded = false
         
+        //calculate distance from current search center
         private var distanceAway: Double? {
             guard let userLocation = userLocation else { return nil }
             let userLoc = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
@@ -342,6 +358,7 @@ struct ItineraryBuilderView: View {
                             
                             Divider()
                             
+                            //rating section
                             if let rating = place.rating {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Rating")
@@ -379,6 +396,7 @@ struct ItineraryBuilderView: View {
                                 Divider()
                             }
                             
+                            // show distance from search center
                             if let meters = distanceAway {
                                 Text(String(format: "Distance: %.1f km away", meters/1000))
                                     .font(.caption)
@@ -391,6 +409,7 @@ struct ItineraryBuilderView: View {
                     Button(action: {
                         onAdd()
                         isAdded = true
+                        //auto dismiss after adding
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             dismiss()
                         }

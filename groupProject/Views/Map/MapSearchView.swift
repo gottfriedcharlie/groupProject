@@ -1,3 +1,8 @@
+//
+//  MapSearchView.swift
+//  groupProject
+//  Created by Charlie Gottfried
+
 import SwiftUI
 import CoreLocation
 
@@ -14,12 +19,13 @@ struct MapSearchView: View {
                 SearchBar(text: $viewModel.searchText)
                     .padding()
                     .onChange(of: viewModel.searchText) { oldValue, newValue in
+                        // only search after 3 chars to avoid too many api calls
                         if newValue.count >= 3 {
                             viewModel.searchNearby(query: newValue)
                         }
                     }
                 
-                // Error message
+                // Error message display
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                         .foregroundColor(.red)
@@ -27,7 +33,7 @@ struct MapSearchView: View {
                         .padding()
                 }
                 
-                // Loading state
+                // Loading state with spinner
                 if viewModel.isLoading {
                     VStack(spacing: 16) {
                         ProgressView()
@@ -55,7 +61,7 @@ struct MapSearchView: View {
                     }
                     .frame(maxHeight: .infinity)
                 }
-                // Results list
+                // Results list - shows all places from google api
                 else if !viewModel.searchResults.isEmpty {
                     List(viewModel.searchResults) { result in
                         SearchResultRow(
@@ -66,7 +72,7 @@ struct MapSearchView: View {
                     }
                     .listStyle(.plain)
                 }
-                // Empty state
+                // Empty state before searching
                 else {
                     VStack(spacing: 12) {
                         Image(systemName: "map")
@@ -91,6 +97,7 @@ struct MapSearchView: View {
                 }
             }
         }
+        //detail sheet when user taps a search result
         .sheet(item: $selectedResult) { result in
             PlaceDetailSheet(
                 place: result,
@@ -106,7 +113,7 @@ struct MapSearchView: View {
     }
 }
 
-// Search bar component
+// Search bar component - reusable
 struct SearchBar: View {
     @Binding var text: String
 
@@ -118,6 +125,7 @@ struct SearchBar: View {
             TextField("Search places...", text: $text)
                 .textInputAutocapitalization(.none)
             
+            //clear button when theres text
             if !text.isEmpty {
                 Button(action: { text = "" }) {
                     Image(systemName: "xmark.circle.fill")
@@ -131,7 +139,7 @@ struct SearchBar: View {
     }
 }
 
-// Search result row
+// Search result row - shows each place in the list
 struct SearchResultRow: View {
     let result: GooglePlacesResult
     let userLocation: CLLocationCoordinate2D?
@@ -149,6 +157,8 @@ struct SearchResultRow: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
+                    
+                    // rating and distance info in compact row
                     HStack(spacing: 8) {
                         if let rating = result.rating {
                             HStack(spacing: 4) {
@@ -164,6 +174,7 @@ struct SearchResultRow: View {
                                 }
                             }
                         }
+                        //shows distance from current location or search center
                         if let userLoc = userLocation {
                             Text(formattedImperialDistance(from: userLoc, to: result.coordinate))
                                 .font(.caption2)
@@ -180,7 +191,7 @@ struct SearchResultRow: View {
     }
 }
 
-// Place detail sheet
+// Place detail sheet - full info about a place
 struct PlaceDetailSheet: View {
     let place: GooglePlacesResult
     let userLocation: CLLocationCoordinate2D?
@@ -206,6 +217,7 @@ struct PlaceDetailSheet: View {
             }
             .padding()
             
+            //rating display with stars
             if let rating = place.rating {
                 HStack(spacing: 8) {
                     HStack(spacing: 4) {
@@ -223,6 +235,7 @@ struct PlaceDetailSheet: View {
                 .padding(.horizontal)
             }
             
+            // phone number if available
             if let phoneNumber = place.phoneNumber {
                 HStack {
                     Image(systemName: "phone.fill")
@@ -256,7 +269,8 @@ struct PlaceDetailSheet: View {
     }
 }
 
-// Helper function to format distance
+// Helper function to format distance in miles
+// ai helped write this conversion from meters to miles
 func formattedImperialDistance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> String {
     let loc1 = CLLocation(latitude: from.latitude, longitude: from.longitude)
     let loc2 = CLLocation(latitude: to.latitude, longitude: to.longitude)

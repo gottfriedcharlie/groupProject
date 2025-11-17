@@ -1,3 +1,9 @@
+//
+//  ItineraryViewModel.swift
+//  groupProject
+//  Created by Charlie Gottfried
+
+
 import Foundation
 import Combine
 import MapKit
@@ -33,7 +39,7 @@ final class ItineraryViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var itineraryPlaces: [ItineraryPlace] = []
     @Published var selectedTrip: Trip?                    // Track which trip we're building itinerary for
-    @Published var currentOrderedPlaces: [ItineraryPlace] = []  // Places in order of visit
+    @Published var currentOrderedPlaces: [ItineraryPlace] = []  // Places in order of visit - this is the main list
     
     private let key = "itinerary_places"
     private let tripKey = "selected_trip_key"
@@ -46,6 +52,7 @@ final class ItineraryViewModel: ObservableObject {
     
     func addPlace(_ place: GooglePlacesResult) {
         let itineraryPlace = ItineraryPlace(from: place)
+        //check for duplicates before adding
         if !itineraryPlaces.contains(where: { $0.id == itineraryPlace.id }) {
             itineraryPlaces.append(itineraryPlace)
             currentOrderedPlaces.append(itineraryPlace)
@@ -59,6 +66,7 @@ final class ItineraryViewModel: ObservableObject {
         saveItinerary()
     }
     
+    // clear everything when done building itinerary
     func clearItinerary() {
         itineraryPlaces.removeAll()
         currentOrderedPlaces.removeAll()
@@ -67,7 +75,7 @@ final class ItineraryViewModel: ObservableObject {
     }
     
     // MARK: - NEW: Reorder places in itinerary
-    // Move places around in the ordered list
+    // Move places around in the ordered list - important for planning the route
     func movePlaces(from source: IndexSet, to destination: Int) {
         currentOrderedPlaces.move(fromOffsets: source, toOffset: destination)
         saveItinerary()
@@ -83,6 +91,7 @@ final class ItineraryViewModel: ObservableObject {
     }
     
     // Get the starting location for searches (trip destination or first place)
+    // ai helped with this logic for finding the right search center
     func getSearchStartingLocation() -> CLLocationCoordinate2D? {
         // If trip has a destination coordinate, use that
         if let trip = selectedTrip, let coord = trip.destinationCoordinate {
@@ -96,6 +105,7 @@ final class ItineraryViewModel: ObservableObject {
     }
     
     // Get the location for the next search (based on last added place)
+    // this enables location-aware search - searches near last added place
     func getNextSearchLocation() -> CLLocationCoordinate2D? {
         // Search from the last place added to the itinerary
         if let lastPlace = currentOrderedPlaces.last {
@@ -129,6 +139,7 @@ final class ItineraryViewModel: ObservableObject {
     }
 }
 
+// represents a place in an itinerary with all needed info
 struct ItineraryPlace: Identifiable, Codable, Hashable {
     let id: String
     let name: String
@@ -140,19 +151,20 @@ struct ItineraryPlace: Identifiable, Codable, Hashable {
     let rating: Double?
     let userRatingsTotal: Int?
     
+    //convert from google result to itinerary place
     init(from result: GooglePlacesResult) {
         self.id = result.id
         self.name = result.name
         self.address = result.address
         self.latitude = result.latitude
         self.longitude = result.longitude
-        self.category = ItineraryPlace.mapGoogleCategory(result.placeTypes) // NEW LINE
+        self.category = ItineraryPlace.mapGoogleCategory(result.placeTypes) // map google types to our categories
         self.phoneNumber = result.phoneNumber
         self.rating = result.rating
         self.userRatingsTotal = result.userRatingsTotal
     }
 
-    // Helper function (add these in your struct)
+    // Helper function to categorize places from google types
     static func mapGoogleCategory(_ types: [String]) -> PlaceCategory {
         for type in types {
             switch type.lowercased() {

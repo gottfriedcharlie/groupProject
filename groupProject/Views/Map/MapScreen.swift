@@ -1,8 +1,13 @@
+//
+//  MapScreen.swift
+//  groupProject
+//  Created by Charlie Gottfried
 import SwiftUI
 import MapKit
 
 struct MapScreen: View {
     
+    //holy cross campus as default fallback location
     private static let fallbackRegion = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 42.23943764672886, longitude: -71.80796616765598),
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
@@ -18,7 +23,7 @@ struct MapScreen: View {
     @State private var trips: [Trip] = []
     @State private var selectedPin: GooglePlacesResult?
     @State private var showDetailSheet = false
-    @State private var selectedTrip: Trip?
+    @State private var selectedTrip: Trip?  // tracks which trip we're adding places to
     
     let manager = CLLocationManager()
     
@@ -27,13 +32,14 @@ struct MapScreen: View {
             Map(position: $cameraPosition) {
                 UserAnnotation()
                 
-                // Selected Trip Destination
+                // Selected Trip Destination marker
                 if let trip = selectedTrip, let coord = trip.destinationCoordinate {
                     Marker("📍 \(trip.destination)", coordinate: coord)
                         .tint(.green)
                 }
                 
-                // Selected Trip Itinerary Places with numbers
+                //numbering the places in order for the trip - makes it easy to follow the itinerary
+                // AI helped debug the enumeration here to get the index working properly
                 if let trip = selectedTrip {
                     ForEach(Array(trip.itinerary.enumerated()), id: \.element.id) { index, place in
                         Annotation("\(index + 1). \(place.name)", coordinate: place.coordinate) {
@@ -54,7 +60,7 @@ struct MapScreen: View {
                     }
                 }
                 
-                // Search result markers - tappable
+                // search results show as orange pins - tappable to see details
                 ForEach(searchViewModel.searchResults) { result in
                     Annotation(result.name, coordinate: result.coordinate) {
                         Button(action: {
@@ -72,7 +78,7 @@ struct MapScreen: View {
                 MapUserLocationButton()
             }
             .onAppear {
-                manager.requestWhenInUseAuthorization()
+                manager.requestWhenInUseAuthorization()  //ask for location permissions
                 tripListViewModel.loadTrips()
             }
             
@@ -86,6 +92,7 @@ struct MapScreen: View {
                     .tint(.blue)
                 }
                 
+                // trip selector button - shows which trip is active
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         showingTripSelector = true
@@ -105,7 +112,8 @@ struct MapScreen: View {
                 }
             }
             
-            // Trip info card (top-left overlay)
+            //shows which trip is selected right on the map view - like a floating card
+            // this follows the pattern from the bernstein paper about visibility of system state
             if let trip = selectedTrip {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -123,6 +131,7 @@ struct MapScreen: View {
                         
                         Spacer()
                         
+                        // x button to deselect trip
                         Button(action: {
                             withAnimation {
                                 selectedTrip = nil
@@ -151,17 +160,18 @@ struct MapScreen: View {
                 onAddPlace: { result, category in
                     let itineraryPlace = ItineraryPlace(from: result)
                     
-                    // If a trip is selected, add directly to that trip (DON'T save to places)
+                    // if a trip is selected, add directly to that trip instead of general places
+                    // this is key for the add-to-trip workflow from liao paper about direct manipulation
                     if let trip = selectedTrip {
                         var updatedTrip = trip
                         if !updatedTrip.itinerary.contains(where: { $0.id == itineraryPlace.id }) {
                             updatedTrip.itinerary.append(itineraryPlace)
                             tripListViewModel.updateTrip(updatedTrip)
-                            selectedTrip = updatedTrip
+                            selectedTrip = updatedTrip  //keep trip selected after adding
                             print("✅ Place added to trip '\(trip.name)': \(result.name) (NOT saved to places)")
                         }
                     } else {
-                        // No trip selected, add to places only
+                        //no trip selected so just save to places for later
                         placesViewModel.addPlace(itineraryPlace)
                         itineraryViewModel.addPlace(result)
                         print("✅ Place saved to places tab: \(result.name)")
@@ -176,6 +186,7 @@ struct MapScreen: View {
                 onTripSelected: { trip in
                     selectedTrip = trip
                     
+                    //zoom to trip destination when selected - better ux than staying zoomed out
                     if let coord = trip.destinationCoordinate {
                         withAnimation {
                             cameraPosition = .region(MKCoordinateRegion(
@@ -185,6 +196,7 @@ struct MapScreen: View {
                         }
                     }
                     
+                    // update search center for location-aware searching - searches will be near this trip now
                     if let coord = trip.destinationCoordinate {
                         searchViewModel.updateSearchCenter(to: coord)
                     }
@@ -203,11 +215,12 @@ struct MapScreen: View {
                     tripListViewModel: tripListViewModel,
                     onClose: { showDetailSheet = false },
                     onTripUpdated: { updatedTrip in
-                        selectedTrip = updatedTrip
+                        selectedTrip = updatedTrip  // keep state synced
                     }
                 )
             }
         }
+        //had ai help fix this sync issue - needed to watch for changes to keep selected trip updated
         .onChange(of: tripListViewModel.trips) { oldValue, newValue in
             if let currentTrip = selectedTrip,
                let updatedTrip = newValue.first(where: { $0.id == currentTrip.id }) {
@@ -258,6 +271,7 @@ struct TripSelectorSheet: View {
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                         Spacer()
+                                        //show upcoming badge
                                         if trip.isUpcoming {
                                             Text("Upcoming")
                                                 .font(.caption2)
@@ -272,6 +286,7 @@ struct TripSelectorSheet: View {
                                 
                                 Spacer()
                                 
+                                // checkmark for selected trip
                                 if selectedTrip?.id == trip.id {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundColor(.blue)
@@ -328,7 +343,7 @@ struct MapPinDetailSheet: View {
                         
                         Divider()
                         
-                        // Rating
+                        // Rating section with stars
                         if let rating = place.rating {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Rating")
@@ -354,7 +369,7 @@ struct MapPinDetailSheet: View {
                             Divider()
                         }
                         
-                        // Phone
+                        // Phone - tappable to call
                         if let phone = place.phoneNumber, !phone.isEmpty {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Phone")
@@ -367,7 +382,7 @@ struct MapPinDetailSheet: View {
                             Divider()
                         }
                         
-                        // Types
+                        // place categories/types
                         if !place.placeTypes.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Type")
@@ -389,7 +404,7 @@ struct MapPinDetailSheet: View {
                             }
                         }
                         
-                        // Show which trip it will be added to
+                        // Show which trip it will be added to - visual feedback
                         if let trip = selectedTrip {
                             Divider()
                             HStack {
@@ -408,12 +423,12 @@ struct MapPinDetailSheet: View {
                     .padding()
                 }
                 
-                // Add Button
+                // Add Button - changes text based on context
                 Button(action: {
                     let itineraryPlace = ItineraryPlace(from: place)
                     
                     if let trip = selectedTrip {
-                        // Add to trip (don't save to places)
+                        // Add to specific trip (don't save to general places)
                         var updatedTrip = trip
                         if !updatedTrip.itinerary.contains(where: { $0.id == itineraryPlace.id }) {
                             updatedTrip.itinerary.append(itineraryPlace)
@@ -422,7 +437,7 @@ struct MapPinDetailSheet: View {
                             print("✅ Place added to trip '\(trip.name)': \(place.name) (NOT saved to places)")
                         }
                     } else {
-                        // No trip selected, save to places
+                        // No trip selected, save to places for later use
                         placesViewModel.addPlace(itineraryPlace)
                         itineraryViewModel.addPlace(place)
                         print("✅ Place saved to places: \(place.name)")
@@ -430,6 +445,7 @@ struct MapPinDetailSheet: View {
                     
                     isAdded = true
                     
+                    //auto dismiss after short delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                         dismiss()
                     }
