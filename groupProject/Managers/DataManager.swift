@@ -2,7 +2,7 @@
 //  DataManager.swift
 //  groupProject
 //
-//   .
+//   
 //
 
 import Foundation
