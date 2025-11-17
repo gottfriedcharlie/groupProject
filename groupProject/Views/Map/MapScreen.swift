@@ -1,8 +1,3 @@
-//
-//  MapScreen.swift
-//  groupProject
-//
-
 import SwiftUI
 import MapKit
 
@@ -26,7 +21,6 @@ struct MapScreen: View {
     @State private var selectedTrip: Trip?
     
     let manager = CLLocationManager()
-    let dataManager = DataManager.shared
     
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -79,7 +73,7 @@ struct MapScreen: View {
             }
             .onAppear {
                 manager.requestWhenInUseAuthorization()
-                trips = dataManager.loadTrips()
+                tripListViewModel.loadTrips()
             }
             
             .toolbar{
@@ -132,7 +126,6 @@ struct MapScreen: View {
                         Button(action: {
                             withAnimation {
                                 selectedTrip = nil
-                                // Reset camera to user location
                                 cameraPosition = .userLocation(fallback: .region(MapScreen.fallbackRegion))
                             }
                         }) {
@@ -148,7 +141,7 @@ struct MapScreen: View {
                         .fill(Color(.systemBackground))
                         .shadow(radius: 5)
                 )
-                .padding(.top, 60) // Below the toolbar
+                .padding(.top, 60)
                 .padding(.horizontal, 16)
             }
         }
@@ -158,23 +151,20 @@ struct MapScreen: View {
                 onAddPlace: { result, category in
                     let itineraryPlace = ItineraryPlace(from: result)
                     
-                    // If a trip is selected, add directly to that trip
+                    // If a trip is selected, add directly to that trip (DON'T save to places)
                     if let trip = selectedTrip {
                         var updatedTrip = trip
                         if !updatedTrip.itinerary.contains(where: { $0.id == itineraryPlace.id }) {
                             updatedTrip.itinerary.append(itineraryPlace)
                             tripListViewModel.updateTrip(updatedTrip)
-                            
-                            // Update local selected trip
                             selectedTrip = updatedTrip
-                            
-                            print("✅ Place added to trip '\(trip.name)': \(result.name)")
+                            print("✅ Place added to trip '\(trip.name)': \(result.name) (NOT saved to places)")
                         }
                     } else {
-                        // No trip selected, add to places
+                        // No trip selected, add to places only
                         placesViewModel.addPlace(itineraryPlace)
                         itineraryViewModel.addPlace(result)
-                        print("✅ Place added to saved places: \(result.name)")
+                        print("✅ Place saved to places tab: \(result.name)")
                     }
                 }
             )
@@ -186,7 +176,6 @@ struct MapScreen: View {
                 onTripSelected: { trip in
                     selectedTrip = trip
                     
-                    // Move camera to trip destination
                     if let coord = trip.destinationCoordinate {
                         withAnimation {
                             cameraPosition = .region(MKCoordinateRegion(
@@ -196,7 +185,6 @@ struct MapScreen: View {
                         }
                     }
                     
-                    // Update search center for nearby searches
                     if let coord = trip.destinationCoordinate {
                         searchViewModel.updateSearchCenter(to: coord)
                     }
@@ -221,7 +209,6 @@ struct MapScreen: View {
             }
         }
         .onChange(of: tripListViewModel.trips) { oldValue, newValue in
-            // Refresh selected trip when trips change
             if let currentTrip = selectedTrip,
                let updatedTrip = newValue.first(where: { $0.id == currentTrip.id }) {
                 selectedTrip = updatedTrip
@@ -425,20 +412,20 @@ struct MapPinDetailSheet: View {
                 Button(action: {
                     let itineraryPlace = ItineraryPlace(from: place)
                     
-                    // If a trip is selected, add directly to that trip
                     if let trip = selectedTrip {
+                        // Add to trip (don't save to places)
                         var updatedTrip = trip
                         if !updatedTrip.itinerary.contains(where: { $0.id == itineraryPlace.id }) {
                             updatedTrip.itinerary.append(itineraryPlace)
                             tripListViewModel.updateTrip(updatedTrip)
                             onTripUpdated(updatedTrip)
-                            print("✅ Place added to trip '\(trip.name)': \(place.name)")
+                            print("✅ Place added to trip '\(trip.name)': \(place.name) (NOT saved to places)")
                         }
                     } else {
-                        // No trip selected, add to places
+                        // No trip selected, save to places
                         placesViewModel.addPlace(itineraryPlace)
                         itineraryViewModel.addPlace(place)
-                        print("✅ Place saved: \(place.name)")
+                        print("✅ Place saved to places: \(place.name)")
                     }
                     
                     isAdded = true

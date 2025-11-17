@@ -6,6 +6,7 @@ struct AddTripView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: TripListViewModel
     var prepopulatedItinerary: [ItineraryPlace]? = nil
+    var onTripCreated: (() -> Void)? = nil
 
     @State private var name = ""
     @State private var destination = ""
@@ -16,9 +17,10 @@ struct AddTripView: View {
     @State private var description = ""
     @State private var itinerary: [ItineraryPlace] = []
 
-    init(viewModel: TripListViewModel, prepopulatedItinerary: [ItineraryPlace]? = nil) {
+    init(viewModel: TripListViewModel, prepopulatedItinerary: [ItineraryPlace]? = nil, onTripCreated: (() -> Void)? = nil) {
         self.viewModel = viewModel
         self.prepopulatedItinerary = prepopulatedItinerary
+        self.onTripCreated = onTripCreated
         if let prepopulatedItinerary {
             _itinerary = State(initialValue: prepopulatedItinerary)
         }
@@ -79,6 +81,7 @@ struct AddTripView: View {
                             itinerary: itinerary
                         )
                         viewModel.addTrip(trip)
+                        onTripCreated?()
                         dismiss()
                     }
                     .disabled(name.isEmpty || destination.isEmpty)

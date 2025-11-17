@@ -421,11 +421,4 @@ struct ItineraryBuilderView: View {
         }
     }
     
-    #Preview {
-        NavigationView {
-            ItineraryBuilderView(trip: MockData.sampleTrip1)
-                .environmentObject(ItineraryViewModel())
-                .environmentObject(TripListViewModel())
-        }
-    }
 }

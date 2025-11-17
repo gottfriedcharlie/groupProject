@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct PlacesView: View {
-    @EnvironmentObject var placesViewModel: PlacesViewModel      // Holds [ItineraryPlace]
-    @EnvironmentObject var tripListViewModel: TripListViewModel  // For trip creation/add-to-trip logic
+    @EnvironmentObject var placesViewModel: PlacesViewModel
+    @EnvironmentObject var tripListViewModel: TripListViewModel
 
     @State private var showingCreateTrip = false
     @State private var selectedPlaces: Set<ItineraryPlace> = []
@@ -20,7 +20,6 @@ struct PlacesView: View {
                 } else {
                     placesList
                 }
-                // Show create trip button if selection is active
                 if !selectedPlaces.isEmpty {
                     Button(action: { showingCreateTrip = true }) {
                         Label("Create Trip from Selection", systemImage: "airplane")
@@ -44,7 +43,15 @@ struct PlacesView: View {
             .sheet(isPresented: $showingCreateTrip) {
                 AddTripView(
                     viewModel: tripListViewModel,
-                    prepopulatedItinerary: Array(selectedPlaces)
+                    prepopulatedItinerary: Array(selectedPlaces),
+                    onTripCreated: {
+                        // Delete selected places from saved places after trip creation
+                        for place in selectedPlaces {
+                            placesViewModel.removePlace(place)
+                        }
+                        selectedPlaces.removeAll()
+                        showingCreateTrip = false
+                    }
                 )
             }
             .onAppear {
@@ -64,7 +71,11 @@ struct PlacesView: View {
                         Menu {
                             ForEach(tripListViewModel.trips) { trip in
                                 Button("Add to \(trip.name)") {
+                                    // Add place to trip
                                     tripListViewModel.addPlace(place, to: trip)
+                                    // Remove from saved places
+                                    placesViewModel.removePlace(place)
+                                    print("✅ Added to trip and removed from saved places")
                                 }
                             }
                         } label: {
@@ -75,7 +86,6 @@ struct PlacesView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    // Only allow selection when not in edit mode
                     if editMode == .inactive {
                         if selectedPlaces.contains(place) {
                             selectedPlaces.remove(place)
