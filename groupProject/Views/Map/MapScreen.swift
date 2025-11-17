@@ -8,10 +8,6 @@ import MapKit
 
 struct MapScreen: View {
     
-    let holycross = CLLocationCoordinate2D(latitude: 42.23943764672886,  longitude: -71.80796616765598)
-    let kimball = CLLocationCoordinate2D(latitude: 42.24039047196402, longitude:  -71.80806525911412)
-    let hogan = CLLocationCoordinate2D(latitude: 42.23757318738827, longitude:  -71.8081546995765)
-    
     private static let fallbackRegion = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 42.23943764672886, longitude: -71.80796616765598),
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
@@ -19,24 +15,50 @@ struct MapScreen: View {
     
     @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .region(MapScreen.fallbackRegion))
     @State private var showingSearch = false
+    @State private var showingTripSelector = false
     @StateObject private var searchViewModel = MapSearchViewModel()
-    @StateObject private var itineraryViewModel = ItineraryViewModel()
+    @EnvironmentObject var itineraryViewModel: ItineraryViewModel
+    @EnvironmentObject var placesViewModel: PlacesViewModel
+    @EnvironmentObject var tripListViewModel: TripListViewModel
     @State private var trips: [Trip] = []
     @State private var selectedPin: GooglePlacesResult?
     @State private var showDetailSheet = false
+    @State private var selectedTrip: Trip?
     
     let manager = CLLocationManager()
     let dataManager = DataManager.shared
     
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             Map(position: $cameraPosition) {
                 UserAnnotation()
                 
-                // Static markers
-                Marker("Holycross", coordinate: holycross)
-                Marker("Kimball", coordinate: kimball)
-                Marker("Hogan", coordinate: hogan)
+                // Selected Trip Destination
+                if let trip = selectedTrip, let coord = trip.destinationCoordinate {
+                    Marker("📍 \(trip.destination)", coordinate: coord)
+                        .tint(.green)
+                }
+                
+                // Selected Trip Itinerary Places with numbers
+                if let trip = selectedTrip {
+                    ForEach(Array(trip.itinerary.enumerated()), id: \.element.id) { index, place in
+                        Annotation("\(index + 1). \(place.name)", coordinate: place.coordinate) {
+                            VStack(spacing: 4) {
+                                Text("\(index + 1)")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .frame(width: 28, height: 28)
+                                    .background(Color.blue)
+                                    .clipShape(Circle())
+                                
+                                Image(systemName: "triangle.fill")
+                                    .foregroundColor(.blue)
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                }
                 
                 // Search result markers - tappable
                 ForEach(searchViewModel.searchResults) { result in
@@ -47,7 +69,7 @@ struct MapScreen: View {
                         }) {
                             Image(systemName: "mappin.circle.fill")
                                 .font(.title)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.orange)
                         }
                     }
                 }
@@ -69,33 +91,117 @@ struct MapScreen: View {
                     }
                     .tint(.blue)
                 }
+                
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingTripSelector = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "airplane.circle.fill")
+                            if let trip = selectedTrip {
+                                Text(trip.name)
+                                    .font(.subheadline)
+                            } else {
+                                Text("Select Trip")
+                                    .font(.subheadline)
+                            }
+                        }
+                    }
+                    .tint(.blue)
+                }
+            }
+            
+            // Trip info card (top-left overlay)
+            if let trip = selectedTrip {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(trip.name)
+                                .font(.headline)
+                                .fontWeight(.bold)
+                            Text(trip.destination)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(trip.itinerary.count) places")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            withAnimation {
+                                selectedTrip = nil
+                                // Reset camera to user location
+                                cameraPosition = .userLocation(fallback: .region(MapScreen.fallbackRegion))
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                                .font(.title3)
+                        }
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                        .shadow(radius: 5)
+                )
+                .padding(.top, 60) // Below the toolbar
+                .padding(.horizontal, 16)
             }
         }
         .sheet(isPresented: $showingSearch) {
             MapSearchView(
                 viewModel: searchViewModel,
                 onAddPlace: { result, category in
-                    // Add to itinerary
-                    itineraryViewModel.addPlace(result)
+                    let itineraryPlace = ItineraryPlace(from: result)
                     
-                    // Also save as ItineraryPlace to trip if desired
-                    if let trip = trips.first(where: { $0.isUpcoming }) ?? trips.first {
-                        let itineraryPlace = ItineraryPlace(from: result)
-                        
-                        // Add place to trip's itinerary
+                    // If a trip is selected, add directly to that trip
+                    if let trip = selectedTrip {
                         var updatedTrip = trip
                         if !updatedTrip.itinerary.contains(where: { $0.id == itineraryPlace.id }) {
                             updatedTrip.itinerary.append(itineraryPlace)
-                            // Update the trip in the data manager
-                            var allTrips = dataManager.loadTrips()
-                            if let index = allTrips.firstIndex(where: { $0.id == trip.id }) {
-                                allTrips[index] = updatedTrip
-                                dataManager.saveTrips(allTrips)
-                            }
+                            tripListViewModel.updateTrip(updatedTrip)
+                            
+                            // Update local selected trip
+                            selectedTrip = updatedTrip
+                            
+                            print("✅ Place added to trip '\(trip.name)': \(result.name)")
                         }
-                        
-                        print("✅ Place added to itinerary: \(result.name)")
+                    } else {
+                        // No trip selected, add to places
+                        placesViewModel.addPlace(itineraryPlace)
+                        itineraryViewModel.addPlace(result)
+                        print("✅ Place added to saved places: \(result.name)")
                     }
+                }
+            )
+        }
+        .sheet(isPresented: $showingTripSelector) {
+            TripSelectorSheet(
+                trips: tripListViewModel.trips,
+                selectedTrip: $selectedTrip,
+                onTripSelected: { trip in
+                    selectedTrip = trip
+                    
+                    // Move camera to trip destination
+                    if let coord = trip.destinationCoordinate {
+                        withAnimation {
+                            cameraPosition = .region(MKCoordinateRegion(
+                                center: coord,
+                                span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+                            ))
+                        }
+                    }
+                    
+                    // Update search center for nearby searches
+                    if let coord = trip.destinationCoordinate {
+                        searchViewModel.updateSearchCenter(to: coord)
+                    }
+                    
+                    showingTripSelector = false
                 }
             )
         }
@@ -103,18 +209,115 @@ struct MapScreen: View {
             if let pin = selectedPin {
                 MapPinDetailSheet(
                     place: pin,
+                    placesViewModel: placesViewModel,
                     itineraryViewModel: itineraryViewModel,
-                    onClose: { showDetailSheet = false }
+                    selectedTrip: selectedTrip,
+                    tripListViewModel: tripListViewModel,
+                    onClose: { showDetailSheet = false },
+                    onTripUpdated: { updatedTrip in
+                        selectedTrip = updatedTrip
+                    }
                 )
+            }
+        }
+        .onChange(of: tripListViewModel.trips) { oldValue, newValue in
+            // Refresh selected trip when trips change
+            if let currentTrip = selectedTrip,
+               let updatedTrip = newValue.first(where: { $0.id == currentTrip.id }) {
+                selectedTrip = updatedTrip
             }
         }
     }
 }
 
+// MARK: - Trip Selector Sheet
+struct TripSelectorSheet: View {
+    let trips: [Trip]
+    @Binding var selectedTrip: Trip?
+    let onTripSelected: (Trip) -> Void
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        NavigationView {
+            List {
+                if trips.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "airplane.departure")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        Text("No Trips Yet")
+                            .font(.headline)
+                        Text("Create a trip from the Trips tab")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                } else {
+                    ForEach(trips) { trip in
+                        Button(action: {
+                            onTripSelected(trip)
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(trip.name)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                    Text(trip.destination)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    HStack {
+                                        Text(trip.formattedDateRange)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Spacer()
+                                        if trip.isUpcoming {
+                                            Text("Upcoming")
+                                                .font(.caption2)
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 2)
+                                                .background(Color.blue.opacity(0.2))
+                                                .foregroundColor(.blue)
+                                                .cornerRadius(4)
+                                        }
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                if selectedTrip?.id == trip.id {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle("Select Trip")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Updated Map Pin Detail Sheet
 struct MapPinDetailSheet: View {
     let place: GooglePlacesResult
+    let placesViewModel: PlacesViewModel
     let itineraryViewModel: ItineraryViewModel
+    let selectedTrip: Trip?
+    let tripListViewModel: TripListViewModel
     let onClose: () -> Void
+    let onTripUpdated: (Trip) -> Void
     @Environment(\.dismiss) var dismiss
     @State private var isAdded = false
     
@@ -198,21 +401,59 @@ struct MapPinDetailSheet: View {
                                 }
                             }
                         }
+                        
+                        // Show which trip it will be added to
+                        if let trip = selectedTrip {
+                            Divider()
+                            HStack {
+                                Image(systemName: "airplane")
+                                    .foregroundColor(.blue)
+                                Text("Adding to: \(trip.name)")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.blue)
+                            }
+                            .padding(8)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                        }
                     }
                     .padding()
                 }
                 
                 // Add Button
                 Button(action: {
-                    itineraryViewModel.addPlace(place)
+                    let itineraryPlace = ItineraryPlace(from: place)
+                    
+                    // If a trip is selected, add directly to that trip
+                    if let trip = selectedTrip {
+                        var updatedTrip = trip
+                        if !updatedTrip.itinerary.contains(where: { $0.id == itineraryPlace.id }) {
+                            updatedTrip.itinerary.append(itineraryPlace)
+                            tripListViewModel.updateTrip(updatedTrip)
+                            onTripUpdated(updatedTrip)
+                            print("✅ Place added to trip '\(trip.name)': \(place.name)")
+                        }
+                    } else {
+                        // No trip selected, add to places
+                        placesViewModel.addPlace(itineraryPlace)
+                        itineraryViewModel.addPlace(place)
+                        print("✅ Place saved: \(place.name)")
+                    }
+                    
                     isAdded = true
+                    
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                         dismiss()
                     }
                 }) {
                     HStack {
                         Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
-                        Text(isAdded ? "Added!" : "Add")
+                        if let trip = selectedTrip {
+                            Text(isAdded ? "Added to \(trip.name)!" : "Add to \(trip.name)")
+                        } else {
+                            Text(isAdded ? "Added!" : "Add to Places")
+                        }
                     }
                     .font(.headline)
                     .foregroundColor(.white)
@@ -238,4 +479,7 @@ struct MapPinDetailSheet: View {
 
 #Preview {
     NavigationView { MapScreen() }
+        .environmentObject(ItineraryViewModel())
+        .environmentObject(PlacesViewModel())
+        .environmentObject(TripListViewModel())
 }

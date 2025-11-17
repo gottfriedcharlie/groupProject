@@ -6,15 +6,20 @@ final class PlacesViewModel: ObservableObject {
 
     // MARK: - Add a new place (if not a duplicate)
     func addPlace(_ place: ItineraryPlace) {
-        guard !savedPlaces.contains(where: { $0.id == place.id }) else { return }
+        guard !savedPlaces.contains(where: { $0.id == place.id }) else {
+            print("⚠️ Place already exists: \(place.name)")
+            return
+        }
         savedPlaces.append(place)
         savePlaces()
+        print("✅ Place added to saved places: \(place.name)")
     }
 
     // MARK: - Remove a place
     func removePlace(_ place: ItineraryPlace) {
         savedPlaces.removeAll { $0.id == place.id }
         savePlaces()
+        print("🗑️ Place removed: \(place.name)")
     }
 
     // MARK: - Update an existing place
@@ -30,13 +35,18 @@ final class PlacesViewModel: ObservableObject {
     func savePlaces() {
         if let data = try? JSONEncoder().encode(savedPlaces) {
             UserDefaults.standard.set(data, forKey: key)
+            print("💾 Saved \(savedPlaces.count) places to storage")
         }
     }
 
     func loadPlaces() {
         guard let data = UserDefaults.standard.data(forKey: key),
-              let places = try? JSONDecoder().decode([ItineraryPlace].self, from: data) else { return }
+              let places = try? JSONDecoder().decode([ItineraryPlace].self, from: data) else {
+            print("📂 No saved places found")
+            return
+        }
         self.savedPlaces = places
+        print("📂 Loaded \(places.count) places from storage")
     }
 
     // MARK: - Initializer

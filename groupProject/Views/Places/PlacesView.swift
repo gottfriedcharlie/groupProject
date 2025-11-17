@@ -4,9 +4,9 @@ struct PlacesView: View {
     @EnvironmentObject var placesViewModel: PlacesViewModel      // Holds [ItineraryPlace]
     @EnvironmentObject var tripListViewModel: TripListViewModel  // For trip creation/add-to-trip logic
 
-    @State private var showingAddPlace = false
     @State private var showingCreateTrip = false
     @State private var selectedPlaces: Set<ItineraryPlace> = []
+    @State private var editMode: EditMode = .inactive
 
     var body: some View {
         NavigationView {
@@ -24,28 +24,31 @@ struct PlacesView: View {
                 if !selectedPlaces.isEmpty {
                     Button(action: { showingCreateTrip = true }) {
                         Label("Create Trip from Selection", systemImage: "airplane")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(12)
                     }
                     .padding()
                 }
             }
             .navigationTitle("Places")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddPlace = true }) {
-                        Image(systemName: "plus.circle")
-                    }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    EditButton()
                 }
             }
-            .sheet(isPresented: $showingAddPlace) {
-                AddPlaceView { newPlace in
-                    placesViewModel.addPlace(newPlace)
-                }
-            }
+            .environment(\.editMode, $editMode)
             .sheet(isPresented: $showingCreateTrip) {
                 AddTripView(
                     viewModel: tripListViewModel,
                     prepopulatedItinerary: Array(selectedPlaces)
                 )
+            }
+            .onAppear {
+                placesViewModel.loadPlaces()
             }
         }
     }
@@ -55,28 +58,48 @@ struct PlacesView: View {
             ForEach(placesViewModel.savedPlaces) { place in
                 HStack {
                     PlaceRowView(place: place)
-                    Spacer()
-                    Menu {
-                        ForEach(tripListViewModel.trips) { trip in
-                            Button("Add to \(trip.name)") {
-                                tripListViewModel.addPlace(place, to: trip)
+                    
+                    if editMode == .inactive {
+                        Spacer()
+                        Menu {
+                            ForEach(tripListViewModel.trips) { trip in
+                                Button("Add to \(trip.name)") {
+                                    tripListViewModel.addPlace(place, to: trip)
+                                }
                             }
+                        } label: {
+                            Image(systemName: "plus.circle")
+                                .foregroundColor(.blue)
                         }
-                    } label: {
-                        Image(systemName: "plus")
                     }
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    // Select/deselect for trip creation
-                    if selectedPlaces.contains(place) {
-                        selectedPlaces.remove(place)
-                    } else {
-                        selectedPlaces.insert(place)
+                    // Only allow selection when not in edit mode
+                    if editMode == .inactive {
+                        if selectedPlaces.contains(place) {
+                            selectedPlaces.remove(place)
+                        } else {
+                            selectedPlaces.insert(place)
+                        }
                     }
                 }
             }
+            .onDelete(perform: deletePlaces)
         }
         .listStyle(.insetGrouped)
     }
+    
+    private func deletePlaces(at offsets: IndexSet) {
+        let placesToDelete = offsets.map { placesViewModel.savedPlaces[$0] }
+        for place in placesToDelete {
+            placesViewModel.removePlace(place)
+        }
+    }
+}
+
+#Preview {
+    PlacesView()
+        .environmentObject(PlacesViewModel())
+        .environmentObject(TripListViewModel())
 }
