@@ -1,3 +1,6 @@
+import SwiftUI
+import CoreLocation
+
 // locationManagerViewModel: wraps Core Location to provide current user coordinates
 @MainActor
 class LocationManagerViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {

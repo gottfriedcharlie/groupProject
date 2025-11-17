@@ -1,16 +1,10 @@
-//
-//  EmptyStateView.swift
-//  groupProject
-//
-//   .
-//
-
 import SwiftUI
+// reusable view for displaying an informative message and icon when a list or screen has no data to show ("empty state")
 
 struct EmptyStateView: View {
-    let icon: String
-    let title: String
-    let message: String
+    let icon: String        // visual displayed
+    let title: String       // initial title
+    let message: String     // descriptive message
     
     var body: some View {
         VStack(spacing: 20) {
@@ -28,6 +22,6 @@ struct EmptyStateView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
         }
-        .padding()
+        .padding() // Adds extra space around the whole component
     }
 }
