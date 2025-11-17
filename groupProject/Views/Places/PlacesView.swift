@@ -1,13 +1,15 @@
+// Colin O'Connor
+// PlacesView.swift
+// groupProject
+//
+// Prologue: The main view for the Places tab of the app.  It shows all saved places that havent been added to trips yet. From this tab, users can select multiple places to a create a new trip, add individual places to exsisting trips, and delete places they are no longer interested in.
 import SwiftUI
-
 struct PlacesView: View {
-    @EnvironmentObject var placesViewModel: PlacesViewModel
-    @EnvironmentObject var tripListViewModel: TripListViewModel
-
+    @EnvironmentObject var placesViewModel: PlacesViewModel // The view model that manages the collection of saved places
+    @EnvironmentObject var tripListViewModel: TripListViewModel // The view used to add places to exsisting trips
     @State private var showingCreateTrip = false
-    @State private var selectedPlaces: Set<ItineraryPlace> = []
-    @State private var editMode: EditMode = .inactive
-
+    @State private var selectedPlaces: Set<ItineraryPlace> = [] // Tracks what places are selected by the user
+    @State private var editMode: EditMode = .inactive // Controls whether the list is in edit mode or not
     var body: some View {
         NavigationView {
             VStack {
@@ -18,8 +20,9 @@ struct PlacesView: View {
                         message: "Save places from the map or search to start building trips!"
                     )
                 } else {
-                    placesList
+                    placesList // displays all saved places in a list
                 }
+                // Adds an action button when places are selected
                 if !selectedPlaces.isEmpty {
                     Button(action: { showingCreateTrip = true }) {
                         Label("Create Trip from Selection", systemImage: "airplane")
@@ -40,12 +43,13 @@ struct PlacesView: View {
                 }
             }
             .environment(\.editMode, $editMode)
+            // Creates new trip with the selected places already assigned
             .sheet(isPresented: $showingCreateTrip) {
                 AddTripView(
                     viewModel: tripListViewModel,
-                    prepopulatedItinerary: Array(selectedPlaces),
+                    prepopulatedItinerary: Array(selectedPlaces), // adds the selected places to the itinerary
                     onTripCreated: {
-                        // Delete selected places from saved places after trip creation
+                        // Remove the selected places from the saved list since they are now in a trip
                         for place in selectedPlaces {
                             placesViewModel.removePlace(place)
                         }
@@ -54,28 +58,30 @@ struct PlacesView: View {
                     }
                 )
             }
+            // Refreshes the data
             .onAppear {
                 placesViewModel.loadPlaces()
             }
         }
     }
-
+    // Creates the scrollable list of saved places with selection and actions
     private var placesList: some View {
         List(selection: $selectedPlaces) {
             ForEach(placesViewModel.savedPlaces) { place in
                 HStack {
                     PlaceRowView(place: place)
-                    
+                    // Adds the + button on each place when not in edit mode
                     if editMode == .inactive {
                         Spacer()
                         Menu {
+                            // Creates a item for each exsisting trip
                             ForEach(tripListViewModel.trips) { trip in
                                 Button("Add to \(trip.name)") {
                                     // Add place to trip
                                     tripListViewModel.addPlace(place, to: trip)
                                     // Remove from saved places
                                     placesViewModel.removePlace(place)
-                                    print("✅ Added to trip and removed from saved places")
+                                    print("Added to trip and removed from saved places")
                                 }
                             }
                         } label: {
@@ -85,7 +91,7 @@ struct PlacesView: View {
                     }
                 }
                 .contentShape(Rectangle())
-                .onTapGesture {
+                .onTapGesture { // Handles touch interactivity
                     if editMode == .inactive {
                         if selectedPlaces.contains(place) {
                             selectedPlaces.remove(place)
@@ -99,7 +105,7 @@ struct PlacesView: View {
         }
         .listStyle(.insetGrouped)
     }
-    
+    // Handles the deletion of places from the saved list
     private func deletePlaces(at offsets: IndexSet) {
         let placesToDelete = offsets.map { placesViewModel.savedPlaces[$0] }
         for place in placesToDelete {
@@ -107,7 +113,6 @@ struct PlacesView: View {
         }
     }
 }
-
 #Preview {
     PlacesView()
         .environmentObject(PlacesViewModel())
