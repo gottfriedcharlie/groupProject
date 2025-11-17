@@ -1,12 +1,14 @@
 //
 //  TravelApp.swift
 //  groupProject
-//Sets up the app when it launches. Initializes the three main view models that handle trips, places, and the map, then passes them down so every screen can access the same data.
+//
+// Sets up the app when it launches. Initializes the three main view models that handle trips, places, and the map, then passes them down so every screen can access the same data.
 
 import SwiftUI
 
 @main
 struct TravelApp: App {
+    //creates the view models that manage app state
     @StateObject private var listViewModel = TripListViewModel()
     @StateObject private var itineraryViewModel = ItineraryViewModel()
     @StateObject private var placesViewModel = PlacesViewModel()
@@ -14,6 +16,7 @@ struct TravelApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                //this passes the view models to all screens so they can share data
                 .environmentObject(listViewModel)
                 .environmentObject(itineraryViewModel)
                 .environmentObject(placesViewModel)
