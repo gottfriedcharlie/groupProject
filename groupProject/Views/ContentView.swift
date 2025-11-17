@@ -28,11 +28,6 @@ struct ContentView: View {
             .tabItem {
                 Label("Map", systemImage: "map")
             }
-            
-            ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
         }
     }
 }
